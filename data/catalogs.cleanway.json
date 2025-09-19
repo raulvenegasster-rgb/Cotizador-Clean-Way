@@ -1,121 +1,35 @@
 {
   "politicas": {
-    "MargenMin_Tedeco": 0.18,
     "MargenMin_CleanWay": 0.2,
-    "MargenMin_KOP": 0.22,
-    "VigenciaDias": 15,
-    "Redondeo": 10,
-    "TipoCambioUSD": 20,
+    "CostoAdministrativo%": 0.05,
     "RecargoNocturno": 0.15,
-    "RecargoFinSemana": 0.1,
-    "CostoAdministrativo%": 0.05
+    "FactorInsumosPct": 0.085
   },
   "roles": [
     {
-      "Rol": "Operador",
+      "Rol": "Auxiliar",
       "CostoHora": 70,
-      "Prestaciones%": 0.35,
-      "Notas": null
+      "Prestaciones%": 0.35
     },
     {
       "Rol": "Supervisor",
       "CostoHora": 95,
-      "Prestaciones%": 0.35,
-      "Notas": null
-    },
-    {
-      "Rol": "Auxiliar",
-      "CostoHora": 60,
-      "Prestaciones%": 0.35,
-      "Notas": null
+      "Prestaciones%": 0.35
     }
   ],
   "epp": [
     {
-      "KOP": "EPP",
-      "None": "Notas"
+      "EPP": "Guantes",
+      "CostoUnitario": 20,
+      "VidaUtil_Dias": 120,
+      "Uso_Diario_Unidades": 1
     },
     {
-      "KOP": "Lentes",
-      "None": null
-    },
-    {
-      "KOP": "Guantes",
-      "None": null
-    },
-    {
-      "KOP": "Chaleco",
-      "None": null
-    },
-    {
-      "KOP": "Tapones Auditivos",
-      "None": null
-    },
-    {
-      "KOP": "Clean Way",
-      "None": null
-    },
-    {
-      "KOP": "EPP",
-      "None": "Notas"
-    },
-    {
-      "KOP": "Lentes",
-      "None": null
-    },
-    {
-      "KOP": "Guantes",
-      "None": null
-    },
-    {
-      "KOP": "Chaleco",
-      "None": null
-    },
-    {
-      "KOP": "Tapones Auditivos",
-      "None": null
+      "EPP": "Botas",
+      "CostoUnitario": 650,
+      "VidaUtil_Dias": 365,
+      "Uso_Diario_Unidades": 1
     }
   ],
-  "insumos": [
-    {
-      "Kop": "Concepto",
-      "None": "Notas"
-    },
-    {
-      "Kop": "Reporte de inspeccion ",
-      "None": null
-    },
-    {
-      "Kop": "Marcadores pentel ",
-      "None": null
-    },
-    {
-      "Kop": "Etiquetas de inspección ",
-      "None": null
-    },
-    {
-      "Kop": "Clean Way",
-      "None": null
-    },
-    {
-      "Kop": "Concepto",
-      "None": "Notas"
-    },
-    {
-      "Kop": "Bitacora limpieza",
-      "None": null
-    },
-    {
-      "Kop": "Escoba",
-      "None": null
-    },
-    {
-      "Kop": "Trapeador",
-      "None": null
-    },
-    {
-      "Kop": "Recogerdor",
-      "None": null
-    }
-  ]
+  "insumos": []
 }
