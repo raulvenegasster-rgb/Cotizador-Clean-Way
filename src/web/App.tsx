@@ -55,20 +55,23 @@ export default function App() {
   async function generarPDF() {
     const doc = new jsPDF();
 
-    // Logo (si existe en /public)
+    // Logo más grande en PDF
+    const LOGO_W = 56;   // ancho
+    const LOGO_H = 28;   // alto
+
     try {
       const logoData = await fetch("/logo-cleanway.png")
         .then(r => r.ok ? r.blob() : Promise.reject())
         .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }));
-      doc.addImage(logoData, "PNG", 14, 10, 28, 14);
+      doc.addImage(logoData, "PNG", 14, 10, LOGO_W, LOGO_H);
     } catch {
       // sin logo, seguimos
     }
 
     doc.setFontSize(16);
-    doc.text("Cotizador Clean Way", 46, 18);
+    doc.text("Cotizador Clean Way", 14 + LOGO_W + 10, 18);
     doc.setFontSize(10);
-    doc.text(`Días efectivos por semana: ${res.diasEfectivosSemana}`, 46, 24);
+    doc.text(`Días efectivos por semana: ${res.diasEfectivosSemana}`, 14 + LOGO_W + 10, 24);
     doc.text(
       `Políticas: Margen ${(catalogs.politicas.MargenMin_CleanWay*100).toFixed(0)}% | Overhead ${(catalogs.politicas["CostoAdministrativo%"]*100).toFixed(0)}% | Insumos ${(((catalogs.politicas as any).FactorInsumosPct ?? 0.085)*100).toFixed(1)}%`,
       14,
@@ -91,8 +94,8 @@ export default function App() {
       startY: 36,
       theme: "grid",
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [245, 246, 248], textColor: 0 },
-      alternateRowStyles: { fillColor: [250, 250, 250] }
+      headStyles: { fillColor: [238, 242, 247], textColor: 0 },  // gris claro
+      alternateRowStyles: { fillColor: [243, 244, 246] }
     });
 
     const y = (doc as any).lastAutoTable.finalY || 36;
@@ -107,7 +110,7 @@ export default function App() {
       <div className="header">
         <img src="/logo-cleanway.png" alt="Clean Way" />
         <div>
-          <h1 style={{ margin: 0 }}>Cotizador Clean Way</h1>
+          <h1>Cotizador Clean Way</h1>
           <div className="subtle">Parámetros de cotización</div>
         </div>
       </div>
@@ -224,4 +227,3 @@ export default function App() {
     </div>
   );
 }
-
