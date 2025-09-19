@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
@@ -14,8 +15,7 @@
       "@src/*": [
         "src/*"
       ]
-    },
-    "resolveJsonModule": true
+    }
   },
   "include": [
     "src",
