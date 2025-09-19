@@ -5,38 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cotizador Clean Way</title>
     <style>
-  :root {
-    --bg-gray: #f3f4f6;      /* fondo */
-    --card-bg: #ffffff;      /* tarjetas */
-    --line: #e5e7eb;         /* bordes ligeros */
-    --text: #111827;         /* texto */
-    --muted: #6b7280;        /* gris */
-    --thead: #f9fafb;        /* bg encabezado tabla */
-    --zebra: #fafafa;        /* filas alternas */
-    --pill: #f1f5f9;         /* chips suaves */
-  }
-  html, body { background: var(--bg-gray); color: var(--text); }
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px; font-family: Inter, system-ui, Arial; }
-  .card { background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px; padding:16px; }
-  .header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
-  .header img { height:38px; width:auto; }
-  .subtle { color: var(--muted); font-size: 12px; }
-  table.data { width:100%; border-collapse: separate; border-spacing:0; }
-  table.data thead th {
-    text-align:left; padding:10px; background: var(--thead); border-bottom:1px solid var(--line);
-    font-weight:600;
-  }
-  table.data tbody td { padding:10px; border-bottom:1px solid var(--line); }
-  table.data tbody tr:nth-child(even) td { background: var(--zebra); }
-  .num { text-align:right; font-variant-numeric: tabular-nums; }
-  .chip { display:inline-block; padding:4px 8px; border-radius:999px; background:var(--pill); border:1px solid var(--line); }
-  .btn { padding:10px 14px; border-radius:8px; border:1px solid #111; background:#111; color:#fff; }
-</style>
-
+      :root {
+        /* Gris más oscuro */
+        --bg-gray: #d1d5db;     /* antes #f3f4f6 */
+        --card-bg: #ffffff;
+        --line: #c5cbd3;        /* bordes un poco más marcados */
+        --text: #111827;
+        --muted: #4b5563;
+        --thead: #eef2f7;       /* encabezado tabla */
+        --zebra: #f3f4f6;       /* filas alternas */
+        --pill: #e5e7eb;        /* chips suaves */
+      }
+      html, body { background: var(--bg-gray); color: var(--text); }
+      .container { max-width: 1100px; margin: 0 auto; padding: 24px; font-family: Inter, system-ui, Arial; }
+      .card { background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px; padding:16px; }
+      .header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+      .header img { height: 64px; width: auto; }   /* LOGO más grande en web */
+      .subtle { color: var(--muted); font-size: 12px; }
+      table.data { width:100%; border-collapse: separate; border-spacing:0; }
+      table.data thead th {
+        text-align:left; padding:10px; background: var(--thead); border-bottom:1px solid var(--line);
+        font-weight:600;
+      }
+      table.data tbody td { padding:10px; border-bottom:1px solid var(--line); }
+      table.data tbody tr:nth-child(even) td { background: var(--zebra); }
+      .num { text-align:right; font-variant-numeric: tabular-nums; }
+      .chip { display:inline-block; padding:4px 8px; border-radius:999px; background:var(--pill); border:1px solid var(--line); }
+      .btn { padding:10px 14px; border-radius:8px; border:1px solid #111; background:#111; color:#fff; cursor:pointer; }
+      label { display:block; font-size:14px; color:#333; }
+      input, select { margin-top:4px; padding:8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+      h1 { margin:0; font-size: 22px; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/web/main.tsx"></script>
   </body>
 </html>
-
