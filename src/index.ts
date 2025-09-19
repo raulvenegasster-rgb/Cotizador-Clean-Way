@@ -1,28 +1,25 @@
 import fs from "node:fs";
 import path from "node:path";
 import { cotizarCleanWay } from "./engine_cleanway.js";
-import type { Catalogs, CleanWayInput } from "./types.js";
+import type { Catalogs, CleanWayInput, ShiftInput } from "./types.js";
 
 const catalogsPath = path.resolve("data/catalogs.cleanway.json");
 const catalogs: Catalogs = JSON.parse(fs.readFileSync(catalogsPath, "utf-8"));
 
-function parseArgs(): CleanWayInput {
-  const args = Object.fromEntries(process.argv.slice(2).map(s => {
-    const [k, v] = s.split("=");
-    return [k.replace(/^--/, ""), v];
-  }));
+function main() {
+  const shifts: ShiftInput[] = [
+    { enabled: true, label: "Primer", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 6, supervisores: 1 },
+    { enabled: true, label: "Segundo", horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 6, supervisores: 1 },
+    { enabled: true, label: "Tercer", horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 6, supervisores: 1 },
+    { enabled: false, label: "Personalizado", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 }
+  ];
 
-  const personas = Number(args.personas ?? 6);
-  const horaEntrada = String(args.in ?? "06:00");
-  const horaSalida  = String(args.out ?? "14:00");
-  const diasSemana = String(args.dias ?? "L-S");
-  const turno = String(args.turno ?? "Diurno");
-  const insumosProveeQuokka = String(args.insumos ?? "si").toLowerCase().startsWith("s");
-  const m2 = args.m2 ? Number(args.m2) : undefined;
+  const input: CleanWayInput = {
+    dias: "L-V",
+    insumosProveeQuokka: true,
+    shifts
+  };
 
-  return { personas, horaEntrada, horaSalida, diasSemana, turno, insumosProveeQuokka, m2 };
+  const res = cotizarCleanWay(catalogs, input);
+  console.log(JSON.stringify({ input, res }, null, 2));
 }
-
-const input = parseArgs();
-const res = cotizarCleanWay(catalogs, input);
-console.log(JSON.stringify({ input, res }, null, 2));
