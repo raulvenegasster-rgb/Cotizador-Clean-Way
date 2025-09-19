@@ -8,9 +8,17 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@data/*": ["data/*"],
-      "@src/*": ["src/*"]
-    }
+      "@data/*": [
+        "data/*"
+      ],
+      "@src/*": [
+        "src/*"
+      ]
+    },
+    "resolveJsonModule": true
   },
-  "include": ["src", "data"]
+  "include": [
+    "src",
+    "data"
+  ]
 }
