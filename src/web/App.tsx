@@ -8,10 +8,10 @@ import autoTable from "jspdf-autotable";
 const catalogs = catalogsRaw as unknown as Catalogs;
 
 const defaultShifts: ShiftInput[] = [
-  { enabled: true,  label: "Primer",       horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Segundo",      horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Tercer",       horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Personalizado",horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 }
+  { enabled: true,  label: "Primer",        horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Segundo",       horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Tercer",        horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Personalizado", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 }
 ];
 
 function diasToLabel(d: string) {
@@ -29,10 +29,11 @@ export default function App() {
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
 
   useEffect(()=>{
+    // Equivalencia simple: L-V == L,M,X,J,V
     if (dias === "L-V") setDiasPers(["L","M","X","J","V"]);
   }, [dias]);
 
-  const input: CleanWayInput = useMemo(()=> ({
+  const input: CleanWayInput = useMemo(()=>({
     dias,
     diasPersonalizados: dias === "custom" ? diasPers : (dias === "L,M,X,J,V" ? ["L","M","X","J","V"] : undefined),
     insumosProveeQuokka: insumosQuokka,
@@ -51,13 +52,28 @@ export default function App() {
     setDiasPers(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
   }
 
-  function generarPDF() {
+  async function generarPDF() {
     const doc = new jsPDF();
+
+    // Logo (si existe en /public)
+    try {
+      const logoData = await fetch("/logo-cleanway.png")
+        .then(r => r.ok ? r.blob() : Promise.reject())
+        .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }));
+      doc.addImage(logoData, "PNG", 14, 10, 28, 14);
+    } catch {
+      // sin logo, seguimos
+    }
+
     doc.setFontSize(16);
-    doc.text("Cotizador Clean Way", 14, 18);
+    doc.text("Cotizador Clean Way", 46, 18);
     doc.setFontSize(10);
-    doc.text(`Días efectivos por semana: ${res.diasEfectivosSemana}`, 14, 26);
-    doc.text(`Políticas: Margen ${(catalogs.politicas.MargenMin_CleanWay*100).toFixed(0)}% | Overhead ${(catalogs.politicas["CostoAdministrativo%"]*100).toFixed(0)}% | Insumos ${(((catalogs.politicas as any).FactorInsumosPct ?? 0.085)*100).toFixed(1)}%`, 14, 31);
+    doc.text(`Días efectivos por semana: ${res.diasEfectivosSemana}`, 46, 24);
+    doc.text(
+      `Políticas: Margen ${(catalogs.politicas.MargenMin_CleanWay*100).toFixed(0)}% | Overhead ${(catalogs.politicas["CostoAdministrativo%"]*100).toFixed(0)}% | Insumos ${(((catalogs.politicas as any).FactorInsumosPct ?? 0.085)*100).toFixed(1)}%`,
+      14,
+      30
+    );
 
     const body = res.lineas.map(l => [
       l.qty,
@@ -72,34 +88,90 @@ export default function App() {
     autoTable(doc, {
       head: [["Qty", "Producto", "Servicio", "Hrs/persona", "U. Price", "Total", "Moneda"]],
       body,
-      startY: 36
+      startY: 36,
+      theme: "grid",
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [245, 246, 248], textColor: 0 },
+      alternateRowStyles: { fillColor: [250, 250, 250] }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 36;
-    doc.text(`Total por día: $ ${res.totalDia.toFixed(2)} MXN`, 14, finalY + 10);
-    doc.text(`Total semanal: $ ${res.totalSemana.toFixed(2)} MXN`, 14, finalY + 16);
-
+    const y = (doc as any).lastAutoTable.finalY || 36;
+    doc.text(`Total por día: $ ${res.totalDia.toFixed(2)} MXN`, 14, y + 8);
+    doc.text(`Total semanal: $ ${res.totalSemana.toFixed(2)} MXN`, 14, y + 14);
     doc.save("Cotizacion_CleanWay.pdf");
   }
 
-   return (
+  return (
     <div className="container">
       {/* HEADER con logo */}
       <div className="header">
         <img src="/logo-cleanway.png" alt="Clean Way" />
         <div>
-          <h1 style={{margin:0}}>Cotizador Clean Way</h1>
+          <h1 style={{ margin: 0 }}>Cotizador Clean Way</h1>
           <div className="subtle">Parámetros de cotización</div>
         </div>
       </div>
 
-      {/* Filtros arriba (días e insumos) como ya los tienes */}
-      {/* ... */}
+      {/* Filtros: días e insumos */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 16 }}>
+        <label>Días de semana
+          <select
+            value={diasToLabel(dias)}
+            onChange={e=> setDias(e.target.value === "Personalizado" ? "custom" : e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <option value="L-V">L-V</option>
+            <option value="L-S">L-S</option>
+            <option value="L-D">L-D</option>
+            <option value="L,M,X,J,V">L,M,X,J,V</option>
+            <option value="Personalizado">Personalizado</option>
+          </select>
+        </label>
 
-      {/* Turnos y dotación (igual que ya lo tienes, puedes envolver cada turno en .card si quieres) */}
-      {/* ... */}
+        <label>¿Quokka provee insumos?
+          <select value={insumosQuokka ? "si" : "no"} onChange={e=>setInsumosQuokka(e.target.value==="si")} style={{ width: "100%" }}>
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+          </select>
+        </label>
 
-      {/* DESGLOSE EN TABLA CON FORMATO */}
+        <div style={{ display: dias === "custom" ? "block" : "none" }}>
+          <div className="subtle">Selecciona días</div>
+          {["L","M","X","J","V","S","D"].map(d => (
+            <label key={d} style={{ marginRight: 8 }}>
+              <input type="checkbox" checked={diasPers.includes(d)} onChange={()=>toggleDia(d)} /> {d}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Turnos y dotación */}
+      <div style={{ marginTop: 24 }}>
+        <h3>Turnos y dotación por turno</h3>
+        {shifts.map((s, i) => (
+          <div key={i} className="card" style={{ marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 160px 160px 160px 160px 160px", gap: 12, alignItems: "center" }}>
+              <label>
+                <input type="checkbox" checked={s.enabled} onChange={e=>updateShift(i,{enabled: e.target.checked})}/> {s.label}
+              </label>
+              <label>Entrada
+                <input type="time" value={s.horaEntrada} onChange={e=>updateShift(i,{horaEntrada: e.target.value})} style={{ width: "100%" }}/>
+              </label>
+              <label>Salida
+                <input type="time" value={s.horaSalida} onChange={e=>updateShift(i,{horaSalida: e.target.value})} style={{ width: "100%" }}/>
+              </label>
+              <label>Auxiliares
+                <input type="number" min={0} value={s.auxiliares} onChange={e=>updateShift(i,{auxiliares: Number(e.target.value)})} style={{ width: "100%" }}/>
+              </label>
+              <label>Supervisores
+                <input type="number" min={0} value={s.supervisores} onChange={e=>updateShift(i,{supervisores: Number(e.target.value)})} style={{ width: "100%" }}/>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desglose en tabla */}
       <div className="card" style={{ marginTop: 24 }}>
         <h3 style={{ marginTop: 0 }}>Desglose por línea</h3>
         <table className="data">
@@ -141,7 +213,7 @@ export default function App() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <button className="btn" onClick={generarPDF}>Generar PDF</button>
+        <button className="btn" onClick={() => generarPDF()}>Generar PDF</button>
       </div>
 
       <div className="subtle" style={{ marginTop: 12 }}>
