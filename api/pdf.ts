@@ -1,5 +1,8 @@
+// api/pdf.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import PDFDocument from "pdfkit";
+// MUY IMPORTANTE: usar require para pdfkit en runtime de Vercel
+// evita "TypeError: PDFDocument is not a constructor" y demás novelas.
+const PDFDocument = require("pdfkit");
 
 type PdfItem = {
   qty: number;
@@ -13,10 +16,7 @@ type PdfItem = {
 
 type Payload = {
   logoDataUrl?: string;
-  header?: {
-    dias?: number;
-    // si después quieres meter cliente/dirección/folio/validez, los añadimos aquí
-  };
+  header?: { dias?: number };
   items: PdfItem[];
   totals: { totalDia: number; totalSemana: number; moneda?: string };
 };
@@ -25,17 +25,23 @@ const fmtMXN = (n: number) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 }).format(n);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "method_not_allowed" });
-  }
-
   try {
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "method_not_allowed" });
+    }
+
     const body = (typeof req.body === "string" ? JSON.parse(req.body) : req.body) as Payload;
 
     const doc = new PDFDocument({ size: "A4", margin: 36 });
     const chunks: Buffer[] = [];
-    doc.on("data", c => chunks.push(c));
+    doc.on("data", (c: Buffer) => chunks.push(c));
+    doc.on("error", (err: any) => {
+      console.error("pdf-stream-error", err);
+      try {
+        res.status(500).json({ error: "pdf_stream_error", message: String(err?.message || err) });
+      } catch {}
+    });
     doc.on("end", () => {
       const pdf = Buffer.concat(chunks);
       res.setHeader("Content-Type", "application/pdf");
@@ -46,14 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const startX = doc.page.margins.left;
     let y = doc.page.margins.top;
 
-    // Header
+    // Header con logo
     if (body.logoDataUrl) {
       try {
-        const b64 = body.logoDataUrl.split(",")[1];
-        const buf = Buffer.from(b64, "base64");
+        const base64 = body.logoDataUrl.split(",")[1];
+        const buf = Buffer.from(base64, "base64");
         doc.image(buf, startX, y, { width: 90 });
-      } catch {}
+      } catch (e: any) {
+        console.warn("logo-parse-failed", e?.message || e);
+      }
     }
+
     doc.fontSize(20).fillColor("#0f172a").text("Cotización de servicio de limpieza", startX + 110, y);
     y += 28;
 
@@ -63,7 +72,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     doc.text("Saltillo Coahuila, México. C.P. 25200  •  hola@cleanway.la", startX + 110, y);
     y += 20;
 
-    // Meta a la derecha
     const rightX = doc.page.width - doc.page.margins.right - 180;
     const fecha = new Date();
     doc.fontSize(10).fillColor("#111").text("Fecha:", rightX, doc.page.margins.top);
@@ -73,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     doc.text("Moneda:", rightX, doc.page.margins.top + 28);
     doc.text(body.totals?.moneda || "MXN", rightX + 65, doc.page.margins.top + 28);
 
-    // Bill to (placeholder por ahora)
+    // “Bill to” placeholder
     y += 8;
     doc.moveTo(startX, y).lineTo(doc.page.width - doc.page.margins.right, y).strokeColor("#e5e7eb").stroke();
     y += 10;
@@ -143,18 +151,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     headerRow();
     (body.items || []).forEach((it, idx) => row(it, idx % 2 === 1));
 
-    // Totales a la derecha
+    // Totales
     y += 12;
     const right = startX + tableWidth;
     const lineH = 16;
     const subtotal = (body.items || []).reduce((a, b) => a + (b.total || 0), 0);
-    const iva = subtotal * 0.16; // si usas otra tasa, la hacemos param luego
+    const iva = subtotal * 0.16;
     const granTotal = subtotal + iva;
 
     doc.fontSize(10).fillColor("#334155");
     function totalRow(label: string, value: string) {
       doc.text(label, right - 200, y, { width: 110, align: "right" });
-      doc.font("#111").text(value, right - 85, y, { width: 85, align: "right" });
+      doc.fillColor("#111").text(value, right - 85, y, { width: 85, align: "right" });
       y += lineH;
       doc.fillColor("#334155");
     }
@@ -182,6 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     doc.end();
   } catch (e: any) {
+    console.error("pdf-handler-error", e);
     res.status(500).json({ error: "pdf_error", message: e?.message || String(e) });
   }
 }

@@ -1,30 +1,24 @@
 {
-  "name": "cleanway-quoting-engine",
-  "version": "0.1.0",
-  "private": false,
-  "type": "module",
+  "name": "cotizador-cleanway",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "cli": "ts-node src/index.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
-    "pdfkit": "^0.17.2",
+    "@vercel/node": "^3.0.0",
+    "pdfkit": "^0.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.5.4",
-    "@types/pdfkit": "^0.17.3",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "@vercel/node": "^5.3.22",
-    "@vitejs/plugin-react": "^4.3.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.0"
+    "@types/node": "^20.12.12",
+    "@types/pdfkit": "^0.13.6",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1"
   }
 }
