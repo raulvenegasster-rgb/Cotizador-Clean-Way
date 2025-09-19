@@ -1,14 +1,19 @@
-// api/pdf.js — CommonJS + BUFFER (sin streaming) para evitar PDFs corruptos
+// api/pdf.js — CommonJS, buffer en memoria, headers estrictos y guardas de payload
 'use strict';
 
 const PDFDocument = require('pdfkit');
 
+// Formateo con separador de miles
 const fmtMXN = (n) =>
   new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
     minimumFractionDigits: 2
   }).format(Number.isFinite(n) ? n : 0);
+
+// Log de errores inesperados (por si algo se sale del try/catch)
+process.on('uncaughtException', (e) => console.error('[/api/pdf] uncaught', e));
+process.on('unhandledRejection', (e) => console.error('[/api/pdf] unhandled', e));
 
 module.exports = async function (req, res) {
   console.log('[/api/pdf] init', { method: req.method, ts: new Date().toISOString() });
@@ -19,41 +24,43 @@ module.exports = async function (req, res) {
       return res.status(405).json({ error: 'method_not_allowed' });
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    console.log('[/api/pdf] payload ok', {
-      items: Array.isArray(body?.items) ? body.items.length : 0
-    });
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const items = Array.isArray(body.items) ? body.items : [];
+    console.log('[/api/pdf] payload ok', { items: items.length });
 
-    // 1) Crear PDF y acumular en memoria
+    // 1) Crear PDF y acumular chunks
     const doc = new PDFDocument({ size: 'A4', margin: 36 });
     const chunks = [];
-    let pdfEnded = false;
+    let ended = false;
 
     doc.on('data', (c) => chunks.push(c));
     doc.on('error', (err) => {
       console.error('[/api/pdf] pdfkit-error', err);
-      if (!pdfEnded) {
-        try { res.status(500).json({ error: 'pdf_stream_error' }); } catch {}
-      }
     });
     doc.on('end', () => {
-      pdfEnded = true;
+      ended = true;
       const pdf = Buffer.concat(chunks);
 
-      // 2) Enviar con headers correctos y longitud fija
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="Cotizacion_CleanWay.pdf"');
-      res.setHeader('Content-Length', String(pdf.length));
-      // Evitar que algún proxy intente recomprimir
-      res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('Content-Encoding', 'identity');
-
-      res.end(pdf);
-      console.log('[/api/pdf] sent bytes:', pdf.length);
+      // 2) Enviar binario con longitud fija
+      try {
+        res.writeHead(200, {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'attachment; filename="Cotizacion_CleanWay.pdf"',
+          'Content-Length': String(pdf.length),
+          'Cache-Control': 'no-store',
+          'Content-Encoding': 'identity'
+        });
+        res.end(pdf);
+        console.log('[/api/pdf] sent bytes', pdf.length);
+      } catch (e) {
+        console.error('[/api/pdf] writeHead/end error', e);
+        if (!res.headersSent) {
+          try { res.status(500).json({ error: 'send_failed' }); } catch {}
+        }
+      }
     });
 
-    // 3) Construir el PDF
+    // 3) Construcción del PDF
     const startX = doc.page.margins.left;
     let y = doc.page.margins.top;
 
@@ -61,8 +68,10 @@ module.exports = async function (req, res) {
     if (body?.logoDataUrl) {
       try {
         const base64 = String(body.logoDataUrl).split(',')[1];
-        const buf = Buffer.from(base64, 'base64');
-        doc.image(buf, startX, y, { width: 90 });
+        if (base64) {
+          const buf = Buffer.from(base64, 'base64');
+          doc.image(buf, startX, y, { width: 90 });
+        }
       } catch (e) {
         console.warn('[/api/pdf] logo-parse-failed', e?.message || e);
       }
@@ -86,17 +95,21 @@ module.exports = async function (req, res) {
     doc.text('Moneda:', rightX, doc.page.margins.top + 28);
     doc.text(body?.totals?.moneda || 'MXN', rightX + 65, doc.page.margins.top + 28);
 
-    // Divider + “Datos del cliente” placeholder
     y += 8;
-    doc.moveTo(startX, y).lineTo(doc.page.width - doc.page.margins.right, y).strokeColor('#e5e7eb').stroke();
+    doc.moveTo(startX, y).lineTo(doc.page.width - doc.page.margins.right, y)
+      .strokeColor('#e5e7eb').stroke();
     y += 10;
-    doc.fontSize(11).fillColor('#111').text('Datos del cliente', startX, y);
-    y += 14;
-    doc.fontSize(9).fillColor('#334155')
-      .text('Cliente:', startX, y)
-      .text('Dirección:', startX, y + 12)
-      .text('RFC:', startX, y + 24);
-    y += 40;
+
+    // Si no hay items, devolvemos un PDF mínimo válido y salimos
+    if (items.length === 0) {
+      doc.fontSize(11).fillColor('#111').text('Detalle de servicios', startX, y);
+      y += 14;
+      doc.fontSize(9).fillColor('#334155')
+        .text('No se proporcionaron partidas en esta solicitud.', startX, y);
+      doc.end();
+      console.log('[/api/pdf] doc.end() called (no items)');
+      return;
+    }
 
     // Tabla
     const cols = [
@@ -122,7 +135,6 @@ module.exports = async function (req, res) {
       doc.restore();
       y += 22;
     }
-
     function pageBreak(rowH = 22) {
       const limit = doc.page.height - doc.page.margins.bottom - 140;
       if (y + rowH > limit) {
@@ -131,7 +143,6 @@ module.exports = async function (req, res) {
         headerRow();
       }
     }
-
     function row(r, zebra) {
       pageBreak();
       doc.save();
@@ -158,13 +169,13 @@ module.exports = async function (req, res) {
     }
 
     headerRow();
-    (Array.isArray(body?.items) ? body.items : []).forEach((it, idx) => row(it, idx % 2 === 1));
+    items.forEach((it, idx) => row(it, idx % 2 === 1));
 
     // Totales
     y += 12;
     const right = startX + tableWidth;
     const lineH = 16;
-    const subtotal = (Array.isArray(body?.items) ? body.items : []).reduce((a, b) => a + (b?.total || 0), 0);
+    const subtotal = items.reduce((a, b) => a + (b?.total || 0), 0);
     const iva = subtotal * 0.16;
     const granTotal = subtotal + iva;
 
