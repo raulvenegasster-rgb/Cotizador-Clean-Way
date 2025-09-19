@@ -1,4 +1,4 @@
-// api/pdf.js — Node.js (CommonJS) + streaming directo a la respuesta
+// api/pdf.js — CommonJS + BUFFER (sin streaming) para evitar PDFs corruptos
 'use strict';
 
 const PDFDocument = require('pdfkit');
@@ -24,30 +24,40 @@ module.exports = async function (req, res) {
       items: Array.isArray(body?.items) ? body.items.length : 0
     });
 
-    // Headers ANTES del pipe
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="Cotizacion_CleanWay.pdf"');
-    res.setHeader('Cache-Control', 'no-store');
-
+    // 1) Crear PDF y acumular en memoria
     const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    const chunks = [];
+    let pdfEnded = false;
 
-    // Si algo truena a mitad del stream
+    doc.on('data', (c) => chunks.push(c));
     doc.on('error', (err) => {
-      console.error('[/api/pdf] pdfkit-stream-error', err);
-      // Cerrar la respuesta si aún está abierta
-      if (!res.headersSent) {
-        res.statusCode = 500;
+      console.error('[/api/pdf] pdfkit-error', err);
+      if (!pdfEnded) {
+        try { res.status(500).json({ error: 'pdf_stream_error' }); } catch {}
       }
-      try { res.end(); } catch {}
+    });
+    doc.on('end', () => {
+      pdfEnded = true;
+      const pdf = Buffer.concat(chunks);
+
+      // 2) Enviar con headers correctos y longitud fija
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="Cotizacion_CleanWay.pdf"');
+      res.setHeader('Content-Length', String(pdf.length));
+      // Evitar que algún proxy intente recomprimir
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Encoding', 'identity');
+
+      res.end(pdf);
+      console.log('[/api/pdf] sent bytes:', pdf.length);
     });
 
-    // PIPING directo a la respuesta
-    doc.pipe(res);
-
+    // 3) Construir el PDF
     const startX = doc.page.margins.left;
     let y = doc.page.margins.top;
 
-    // Header con logo
+    // Logo opcional
     if (body?.logoDataUrl) {
       try {
         const base64 = String(body.logoDataUrl).split(',')[1];
@@ -76,7 +86,7 @@ module.exports = async function (req, res) {
     doc.text('Moneda:', rightX, doc.page.margins.top + 28);
     doc.text(body?.totals?.moneda || 'MXN', rightX + 65, doc.page.margins.top + 28);
 
-    // Divider + “Datos del cliente” (placeholder)
+    // Divider + “Datos del cliente” placeholder
     y += 8;
     doc.moveTo(startX, y).lineTo(doc.page.width - doc.page.margins.right, y).strokeColor('#e5e7eb').stroke();
     y += 10;
@@ -112,6 +122,7 @@ module.exports = async function (req, res) {
       doc.restore();
       y += 22;
     }
+
     function pageBreak(rowH = 22) {
       const limit = doc.page.height - doc.page.margins.bottom - 140;
       if (y + rowH > limit) {
@@ -120,6 +131,7 @@ module.exports = async function (req, res) {
         headerRow();
       }
     }
+
     function row(r, zebra) {
       pageBreak();
       doc.save();
@@ -185,7 +197,7 @@ module.exports = async function (req, res) {
       y
     );
 
-    // Cerrar PDF => al cerrar, se cierra el stream y completa la respuesta
+    // 4) Cerrar PDF (dispara 'end' y ahí respondemos)
     doc.end();
     console.log('[/api/pdf] doc.end() called');
   } catch (e) {
