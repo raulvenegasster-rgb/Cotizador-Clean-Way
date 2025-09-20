@@ -84,4 +84,42 @@
       table.data thead th {
         position: sticky; top: 0; z-index: 2;
         text-align:left; padding:12px;
-        background: linear-gradient(180deg, var(--the
+        background: linear-gradient(180deg, var(--thead), #eaf3fb 100%);
+        border-bottom:1px solid var(--line); font-weight:600; font-size: 13px;
+      }
+      table.data tbody td { padding:12px; border-bottom:1px solid var(--line); font-size: 14px; }
+      table.data tbody tr:nth-child(even) td { background: var(--zebra); }
+      .num { text-align:right; font-variant-numeric: tabular-nums; }
+
+      .chip {
+        display:inline-block; padding:4px 10px; border-radius: 999px;
+        background: var(--pill); border:1px solid var(--line);
+        color: var(--brand-600); font-weight: 600; letter-spacing: .2px;
+      }
+
+      h3 { margin: 0 0 10px 0; font-size: 18px; letter-spacing: .2px; }
+
+      .grid-ctrls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+      @media (max-width: 900px) { .grid-ctrls { grid-template-columns: 1fr; } }
+
+      .totals { margin-top: 12px; font-weight: 700; text-align: right; display: flex; justify-content: flex-end; gap: 16px; }
+      .totals span { background: var(--pill); border: 1px solid var(--line); padding: 8px 12px; border-radius: 10px; }
+
+      .card:hover { transform: translateY(-1px); transition: transform .12s ease; }
+
+      /* Radios “Sí / No” */
+      .radio-group { display:flex; gap:10px; align-items:center; }
+      .radio-pill {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:8px 12px; border:1px solid var(--line); border-radius: 999px;
+        background: var(--panel); cursor:pointer; user-select: none;
+      }
+      .radio-pill input { width:auto; margin-top:0; }
+      .radio-pill input:focus-visible + span { box-shadow: var(--ring); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/web/main.tsx"></script>
+  </body>
+</html>
