@@ -1,0 +1,147 @@
+/* ====== src/web/index.css (reemplazo completo) ====== */
+
+/* Reset básico y variables */
+:root{
+  --cw-bg: #eceff3;                 /* gris del lienzo */
+  --cw-card: #ffffff;               /* paneles */
+  --cw-text: #17212b;               /* texto principal */
+  --cw-muted: #6b7280;              /* texto tenue */
+  --cw-border: #e5e7eb;             /* líneas */
+  --cw-primary: #4f46e5;            /* acentos (no invasivo) */
+
+  /* Hero (franjas) */
+  --hero-height: 160px;
+  --hero-c1: #e9f1ff;
+  --hero-c2: #dfeaff;
+  --hero-overlay: rgba(255,255,255,.65);
+}
+
+*{ box-sizing:border-box; }
+html, body, #root{ height:100%; }
+html, body{
+  margin:0;
+  padding:0;
+  color:var(--cw-text);
+  background: var(--cw-bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Asegura que el contenido quede por encima del hero */
+#root{ position:relative; z-index:1; }
+
+/* ====== HERO SUPERIOR (FRANJAS) ======
+   No requiere cambios en el JSX. Es un pseudo–elemento fijo atrás.
+*/
+body::before{
+  content:"";
+  position:fixed;
+  inset:0 auto auto 0;
+  width:100%;
+  height:var(--hero-height);
+  z-index:0;                   /* queda atrás del #root (z-index:1) */
+  background:
+    /* franjas diagonales suaves */
+    repeating-linear-gradient(
+      135deg,
+      var(--hero-c1) 0px,
+      var(--hero-c1) 18px,
+      var(--hero-c2) 18px,
+      var(--hero-c2) 36px
+    ),
+    /* ligero lavado para bajar contraste */
+    linear-gradient(180deg, var(--hero-overlay), var(--hero-overlay));
+  box-shadow:
+    inset 0 -1px 0 rgba(0,0,0,.06),
+    0 6px 16px rgba(2, 6, 23, .06);
+  pointer-events:none;
+}
+
+/* ====== Contenedores y tarjetas (tu UI existente) ====== */
+.container{
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.card{
+  background: var(--cw-card);
+  border: 1px solid var(--cw-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, .04);
+}
+
+/* Cabecera: logo + título alineados como en tu screenshot */
+.header{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin-bottom: 12px;
+}
+.header h1{
+  margin:0;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 700;
+}
+.header small{
+  color: var(--cw-muted);
+  display:block;
+  margin-top:4px;
+}
+
+/* Inputs/Selects (no invasivo) */
+input[type="time"], select, input[type="number"]{
+  border:1px solid var(--cw-border);
+  background:#fff;
+  padding:8px 10px;
+  border-radius:8px;
+  outline:none;
+}
+input[type="time"]:focus,
+select:focus,
+input[type="number"]:focus{
+  border-color: #c7d2fe;
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+
+/* Tabla del desglose */
+.table{
+  width:100%;
+  border-collapse: collapse;
+  background:var(--cw-card);
+  border:1px solid var(--cw-border);
+  border-radius:12px;
+  overflow:hidden;
+}
+.table th, .table td{
+  padding:12px 14px;
+  border-bottom:1px solid var(--cw-border);
+  text-align:left;
+}
+.table th{
+  background:#f7f7fb;
+  color:#374151;
+  font-weight:600;
+}
+.table td.num{
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pie de totales */
+.totales{
+  display:flex;
+  gap:16px;
+  justify-content:flex-end;
+  align-items:center;
+  color:#111827;
+  margin-top:10px;
+}
+
+/* Utilidades (por si las usas) */
+.mt-2{ margin-top:8px; }
+.mt-3{ margin-top:12px; }
+.mt-4{ margin-top:16px; }
+.mt-6{ margin-top:24px; }
