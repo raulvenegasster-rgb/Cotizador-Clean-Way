@@ -72,7 +72,7 @@ export default function App() {
 
   const catalogs = catalogsRaw as unknown as Record<string, unknown>;
 
-  // precargar logo para PDF
+  // precargar logo (si luego lo quieres para otra cosa, aquí queda)
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancel = false;
@@ -128,50 +128,6 @@ export default function App() {
     setDiasPers(prev =>
       prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
     );
-  }
-
-  const [generating, setGenerating] = useState(false);
-  async function generarPDFServidor() {
-    setGenerating(true);
-    try {
-      const payload = {
-        logoDataUrl: logoDataUrl || undefined,
-        header: { dias: res.diasEfectivosSemana },
-        items: res.lineas.map((l: LineaRol) => ({
-          Cantidad: l.Cantidad,
-          rol: l.rol,
-          turno: l.turno,
-          horasPersona: l.horasPorPersona,
-          "Precio/hora": l.precioUnitarioHora,
-          total: l.total,
-          moneda: "MXN"
-        })),
-        totals: {
-          totalDia: res.totalDia,
-          totalSemana: res.totalSemana,
-          moneda: "MXN"
-        }
-      };
-
-      const resp = await fetch("/api/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Cotizacion_CleanWay.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert(`No se pudo generar el PDF en servidor: ${e?.message || e}`);
-    } finally {
-      setGenerating(false);
-    }
   }
 
   return (
@@ -364,12 +320,6 @@ export default function App() {
           Total por día: {fmtMXN.format(res.totalDia)} MXN &nbsp; | &nbsp; Total semanal:{" "}
           {fmtMXN.format(res.totalSemana)} MXN
         </div>
-      </div>
-
-      <div style={{ marginTop: 16, textAlign: "right" }}>
-        <button className="btn" disabled={generating} onClick={generarPDFServidor}>
-          {generating ? "Generando..." : "Generar PDF (servidor)"}
-        </button>
       </div>
     </div>
   );
