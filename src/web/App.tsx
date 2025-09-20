@@ -1,589 +1,343 @@
-// src/web/App.tsx
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-/** Utilidades */
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
-    isFinite(n) ? n : 0
-  );
+/** ====== Config ====== */
+const HOURLY_RATE = {
+  Auxiliar: 129.52,
+  Supervisor: 175.66,
+} as const;
 
-const parseTime = (hhmm: string) => {
-  // hh:mm (24h)
-  const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
-  return (h % 24) + (m || 0) / 60;
-};
+type Rol = keyof typeof HOURLY_RATE;
+type DaysOption = "L-V" | "L-S" | "L-D" | "L,M,X,J,V";
 
-const diffHours = (start: string, end: string) => {
-  // soporta cruce nocturno
-  const s = parseTime(start);
-  let e = parseTime(end);
-  if (e <= s) e += 24;
-  return e - s;
-};
-
-/** Precios de ejemplo (ajústalos a tu tabla real) */
-const PRICE_H_AUX = 129.52;
-const PRICE_H_SUP = 175.66;
-
-/** Tipos */
-type TurnoKey = "primer" | "segundo" | "tercer" | "custom";
-
-interface Linea {
-  qty: number;
-  rol: "Auxiliar" | "Supervisor";
-  turno: "Primer" | "Segundo" | "Tercer" | "Personalizado";
-  horasPorPersona: number;
-  precioUnitarioHora: number;
-  total: number;
-  moneda: "MXN";
+function daysToNumber(opt: DaysOption) {
+  switch (opt) {
+    case "L-V":
+    case "L,M,X,J,V":
+      return 5;
+    case "L-S":
+      return 6;
+    case "L-D":
+      return 7;
+    default:
+      return 5;
+  }
 }
 
+function fmtMoney(n: number) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(n);
+}
+
+function timeStrToMinutes(s: string) {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+}
+function minutesToHours(min: number) {
+  return min / 60;
+}
+function hoursBetween(startHHMM: string, endHHMM: string) {
+  const s = timeStrToMinutes(startHHMM);
+  const e = timeStrToMinutes(endHHMM);
+  const diff = e >= s ? e - s : e + 24 * 60 - s; // cruza medianoche
+  return minutesToHours(diff);
+}
+
+type ShiftState = {
+  enabled: boolean;
+  start: string; // "HH:MM"
+  end: string;   // "HH:MM"
+  auxiliares: number;
+  supervisores: number;
+  label: string;
+};
+
+type Linea = {
+  qty: number;
+  rol: Rol;
+  turno: string;
+  horasPersona: number;
+  unitPrice: number;
+  total: number;
+};
+
 export default function App() {
-  /** Parámetros de cabecera */
-  const [dias, setDias] = useState<"L-V" | "L-S" | "L-D" | "LMXJV">("L-S");
-  const diasEfectivosSemana = useMemo(() => {
-    switch (dias) {
-      case "L-V":
-        return 5;
-      case "L-S":
-        return 6;
-      case "L-D":
-        return 7;
-      case "LMXJV":
-        return 5;
-      default:
-        return 6;
-    }
-  }, [dias]);
+  // Logo FIJO desde /public
+  const logoSrc = "/logo-cleanway.png";
 
-  /** Logo opcional (en DataURL) */
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [diasOpt, setDiasOpt] = useState<DaysOption>("L-V");
+  const diasEfectivos = useMemo(() => daysToNumber(diasOpt), [diasOpt]);
 
-  /** Turnos */
-  const [turnosActivos, setTurnosActivos] = useState<Record<TurnoKey, boolean>>({
-    primer: true,
-    segundo: true,
-    tercer: true,
-    custom: false,
+  // SIN pre-cargas
+  const [primer, setPrimer] = useState<ShiftState>({
+    enabled: true,
+    start: "06:00",
+    end: "14:00",
+    auxiliares: 0,
+    supervisores: 0,
+    label: "Primer",
+  });
+  const [segundo, setSegundo] = useState<ShiftState>({
+    enabled: true,
+    start: "14:00",
+    end: "22:00",
+    auxiliares: 0,
+    supervisores: 0,
+    label: "Segundo",
+  });
+  const [tercer, setTercer] = useState<ShiftState>({
+    enabled: true,
+    start: "22:00",
+    end: "06:00",
+    auxiliares: 0,
+    supervisores: 0,
+    label: "Tercer",
+  });
+  const [custom, setCustom] = useState<ShiftState>({
+    enabled: false,
+    start: "06:00",
+    end: "14:00",
+    auxiliares: 0,
+    supervisores: 0,
+    label: "Personalizado",
   });
 
-  // horarios (24h HH:mm)
-  const [t1, setT1] = useState({ in: "06:00", out: "14:00" });
-  const [t2, setT2] = useState({ in: "14:00", out: "22:00" });
-  const [t3, setT3] = useState({ in: "22:00", out: "06:00" });
-  const [tc, setTc] = useState({ in: "06:00", out: "14:00" });
-
-  /** Dotación por turno (selects grandes) */
-  const [aux, setAux] = useState({ t1: 6, t2: 6, t3: 6, tc: 0 });
-  const [sup, setSup] = useState({ t1: 1, t2: 1, t3: 1, tc: 0 });
-
-  /** Insumos: si Quokka provee, margen 8.5% sobre total final */
-  const [quokkaInsumos, setQuokkaInsumos] = useState<"SI" | "NO">("SI");
-
-  /** Construcción de líneas */
   const lineas: Linea[] = useMemo(() => {
-    const mk = (
-      on: boolean,
-      inout: { in: string; out: string },
-      qtyAux: number,
-      qtySup: number,
-      label: Linea["turno"]
-    ): Linea[] => {
-      if (!on) return [];
-      const horas = diffHours(inout.in, inout.out);
-      const l: Linea[] = [];
-      if (qtyAux > 0) {
-        l.push({
-          qty: qtyAux,
+    const shifts = [primer, segundo, tercer, custom].filter((s) => s.enabled);
+    const out: Linea[] = [];
+    for (const s of shifts) {
+      const hrsDia = hoursBetween(s.start, s.end);
+      const hrsPorPersona = hrsDia * diasEfectivos;
+
+      if (s.auxiliares > 0) {
+        out.push({
+          qty: s.auxiliares,
           rol: "Auxiliar",
-          turno: label,
-          horasPorPersona: horas * diasEfectivosSemana,
-          precioUnitarioHora: PRICE_H_AUX,
-          total: qtyAux * horas * diasEfectivosSemana * PRICE_H_AUX,
-          moneda: "MXN",
+          turno: s.label,
+          horasPersona: hrsPorPersona,
+          unitPrice: HOURLY_RATE.Auxiliar,
+          total: s.auxiliares * HOURLY_RATE.Auxiliar * hrsPorPersona,
         });
       }
-      if (qtySup > 0) {
-        l.push({
-          qty: qtySup,
+      if (s.supervisores > 0) {
+        out.push({
+          qty: s.supervisores,
           rol: "Supervisor",
-          turno: label,
-          horasPorPersona: horas * diasEfectivosSemana,
-          precioUnitarioHora: PRICE_H_SUP,
-          total: qtySup * horas * diasEfectivosSemana * PRICE_H_SUP,
-          moneda: "MXN",
+          turno: s.label,
+          horasPersona: hrsPorPersona,
+          unitPrice: HOURLY_RATE.Supervisor,
+          total: s.supervisores * HOURLY_RATE.Supervisor * hrsPorPersona,
         });
       }
-      return l;
-    };
+    }
+    return out;
+  }, [primer, segundo, tercer, custom, diasEfectivos]);
 
-    return [
-      ...mk(turnosActivos.primer, t1, aux.t1, sup.t1, "Primer"),
-      ...mk(turnosActivos.segundo, t2, aux.t2, sup.t2, "Segundo"),
-      ...mk(turnosActivos.tercer, t3, aux.t3, sup.t3, "Tercer"),
-      ...mk(turnosActivos.custom, tc, aux.tc, sup.tc, "Personalizado"),
-    ];
-  }, [turnosActivos, t1, t2, t3, tc, aux, sup, diasEfectivosSemana]);
-
-  const totalSemana = useMemo(
+  const totalSemanal = useMemo(
     () => lineas.reduce((acc, l) => acc + l.total, 0),
     [lineas]
   );
+  const totalDia = useMemo(
+    () => (diasEfectivos ? totalSemanal / diasEfectivos : 0),
+    [totalSemanal, diasEfectivos]
+  );
 
-  const totalDia = useMemo(() => {
-    // divide entre días efectivos
-    return diasEfectivosSemana > 0 ? totalSemana / diasEfectivosSemana : 0;
-  }, [totalSemana, diasEfectivosSemana]);
-
-  const totalConInsumos = useMemo(() => {
-    if (quokkaInsumos === "SI") {
-      return totalSemana * 1.085;
-    }
-    return totalSemana;
-  }, [totalSemana, quokkaInsumos]);
-
-  /** PDF servidor */
-  const [generating, setGenerating] = useState(false);
-
-  async function generarPDFServidor() {
-    try {
-      setGenerating(true);
-
-      if (lineas.length === 0) {
-        alert("Agrega al menos una línea con cantidad > 0 para generar el PDF.");
-        return;
-      }
-
-      const payload = {
-        logoDataUrl: logoDataUrl || undefined,
-        header: {
-          // Título lo fija el backend a "Cotización de servicio de limpieza"
-          dias: diasEfectivosSemana,
-        },
-        items: lineas.map((l) => ({
-          qty: l.qty,
-          rol: l.rol,
-          turno: l.turno,
-          horasPersona: l.horasPorPersona,
-          unitPrice: l.precioUnitarioHora,
-          total: l.total,
-          moneda: l.moneda,
-        })),
-        totals: {
-          totalDia,
-          totalSemana: totalConInsumos,
-          moneda: "MXN",
-        },
-      };
-
-      const resp = await fetch("/api/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        console.error("[/api/pdf] fallo", resp.status, txt);
-        alert(`No se pudo generar el PDF en servidor: ${resp.status}`);
-        return;
-      }
-
-      const blob = await resp.blob();
-      if (!blob || blob.size === 0) {
-        alert("El PDF regresó vacío.");
-        return;
-      }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Cotizacion_CleanWay.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("PDF error", e);
-      alert("Error al generar el PDF.");
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  /** UI helpers */
-  const NumberSelect: React.FC<{
+  function NumberSelect({
+    value,
+    onChange,
+    max = 50,
+  }: {
     value: number;
-    onChange: (v: number) => void;
+    onChange: (n: number) => void;
     max?: number;
-  }> = ({ value, onChange, max = 30 }) => {
-    const options = Array.from({ length: max + 1 }, (_, i) => i);
+  }) {
     return (
       <select
         value={value}
-        onChange={(e) => onChange(parseInt(e.target.value, 10))}
-        style={{ padding: 8, fontSize: 16, width: 90 }}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-28 h-10 rounded-md border border-gray-300 px-3 text-base"
       >
-        {options.map((n) => (
-          <option key={n} value={n}>
-            {n}
+        {Array.from({ length: max + 1 }).map((_, i) => (
+          <option key={i} value={i}>
+            {i}
           </option>
         ))}
       </select>
     );
-  };
+  }
 
-  const TimeInput: React.FC<{
-    value: string;
-    onChange: (v: string) => void;
-  }> = ({ value, onChange }) => (
-    <input
-      type="time"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ padding: 8, fontSize: 16 }}
-    />
-  );
+  function ShiftCard({
+    s,
+    set,
+  }: {
+    s: ShiftState;
+    set: (next: ShiftState) => void;
+  }) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={s.enabled}
+            onChange={(e) => set({ ...s, enabled: e.target.checked })}
+          />
+          <span className="font-semibold">{s.label}</span>
+        </label>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-5">
+          <div>
+            <label className="block text-sm text-gray-600">Entrada</label>
+            <input
+              type="time"
+              value={s.start}
+              onChange={(e) => set({ ...s, start: e.target.value })}
+              className="w-full h-10 rounded-md border border-gray-300 px-3"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600">Salida</label>
+            <input
+              type="time"
+              value={s.end}
+              onChange={(e) => set({ ...s, end: e.target.value })}
+              className="w-full h-10 rounded-md border border-gray-300 px-3"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600">Auxiliares</label>
+            <NumberSelect
+              value={s.auxiliares}
+              onChange={(n) => set({ ...s, auxiliares: n })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600">Supervisores</label>
+            <NumberSelect
+              value={s.supervisores}
+              onChange={(n) => set({ ...s, supervisores: n })}
+            />
+          </div>
+          <div className="flex items-end">
+            <div className="text-sm text-gray-500">
+              Hrs/día: <b>{hoursBetween(s.start, s.end).toFixed(1)}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "30px auto", padding: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            background: "#eee",
-            borderRadius: 8,
-            overflow: "hidden",
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          {logoDataUrl ? (
-            <img src={logoDataUrl} alt="logo" style={{ maxWidth: "100%" }} />
-          ) : (
-            <small>Logo</small>
-          )}
-        </div>
-        <div>
-          <h2 style={{ margin: 0 }}>Cotizador Clean Way</h2>
-          <div style={{ color: "#666" }}>Parámetros de cotización</div>
-        </div>
-      </div>
-
-      <hr style={{ margin: "20px 0" }} />
-
-      {/* Parámetros */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-          alignItems: "end",
-        }}
-      >
-        <div>
-          <label style={{ display: "block", marginBottom: 6 }}>Días</label>
-          <select
-            value={dias}
-            onChange={(e) => setDias(e.target.value as any)}
-            style={{ padding: 8, fontSize: 16, width: "100%" }}
-          >
-            <option value="L-V">L-V</option>
-            <option value="L-S">L-S</option>
-            <option value="L-D">L-D</option>
-            <option value="LMXJV">L,M,X,J,V</option>
-          </select>
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 6 }}>
-            ¿Quokka provee insumos?
-          </label>
-          <select
-            value={quokkaInsumos}
-            onChange={(e) => setQuokkaInsumos(e.target.value as any)}
-            style={{ padding: 8, fontSize: 16, width: "100%" }}
-          >
-            <option value="SI">Sí</option>
-            <option value="NO">No</option>
-          </select>
-          <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
-            {quokkaInsumos === "SI"
-              ? "Se aplica 8.5% al total semanal."
-              : "Sin incremento por insumos."}
-          </div>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: 24 }}>Turnos y dotación</h3>
-
-      {/* Turno 1 */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 10,
-        }}
-      >
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={turnosActivos.primer}
-            onChange={(e) =>
-              setTurnosActivos((s) => ({ ...s, primer: e.target.checked }))
-            }
-          />
-          <strong>Primer</strong>
-        </label>
-        <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <TimeInput value={t1.in} onChange={(v) => setT1({ ...t1, in: v })} />
-          <TimeInput value={t1.out} onChange={(v) => setT1({ ...t1, out: v })} />
-          <div style={{ marginLeft: 8 }}>
-            <div>Auxiliares</div>
-            <NumberSelect
-              value={aux.t1}
-              onChange={(v) => setAux((s) => ({ ...s, t1: v }))}
+    <div className="min-h-screen bg-gray-100">
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        {/* Header con LOGO FIJO */}
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-28 flex items-center justify-center rounded-lg bg-white border">
+            <img
+              src={logoSrc}
+              alt="Clean Way"
+              className="max-h-14 object-contain"
             />
           </div>
-          <div>
-            <div>Supervisores</div>
-            <NumberSelect
-              value={sup.t1}
-              onChange={(v) => setSup((s) => ({ ...s, t1: v }))}
-            />
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">Cotizador Clean Way</h1>
+            <p className="text-gray-600 text-sm">Parámetros de cotización</p>
           </div>
         </div>
-      </div>
 
-      {/* Turno 2 */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 10,
-        }}
-      >
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={turnosActivos.segundo}
-            onChange={(e) =>
-              setTurnosActivos((s) => ({ ...s, segundo: e.target.checked }))
-            }
-          />
-        </label>
-        <strong>Segundo</strong>
-        <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <TimeInput value={t2.in} onChange={(v) => setT2({ ...t2, in: v })} />
-          <TimeInput value={t2.out} onChange={(v) => setT2({ ...t2, out: v })} />
-          <div style={{ marginLeft: 8 }}>
-            <div>Auxiliares</div>
-            <NumberSelect
-              value={aux.t2}
-              onChange={(v) => setAux((s) => ({ ...s, t2: v }))}
-            />
+        {/* Parámetros */}
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <label className="block text-sm text-gray-600 mb-1">Días</label>
+            <select
+              value={diasOpt}
+              onChange={(e) => setDiasOpt(e.target.value as DaysOption)}
+              className="w-full h-10 rounded-md border border-gray-300 px-3"
+            >
+              <option value="L-V">L-V</option>
+              <option value="L-S">L-S</option>
+              <option value="L-D">L-D</option>
+              <option value="L,M,X,J,V">L,M,X,J,V</option>
+            </select>
+            <p className="mt-2 text-xs text-gray-500">
+              Días efectivos por semana: <b>{diasEfectivos}</b>
+            </p>
           </div>
-          <div>
-            <div>Supervisores</div>
-            <NumberSelect
-              value={sup.t2}
-              onChange={(v) => setSup((s) => ({ ...s, t2: v }))}
-            />
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-sm text-gray-600">
+              Tarifas:&nbsp;
+              <b>Auxiliar {fmtMoney(HOURLY_RATE.Auxiliar)}/h</b> &nbsp;|&nbsp;
+              <b>Supervisor {fmtMoney(HOURLY_RATE.Supervisor)}/h</b>
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Turno 3 */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 10,
-        }}
-      >
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={turnosActivos.tercer}
-            onChange={(e) =>
-              setTurnosActivos((s) => ({ ...s, tercer: e.target.checked }))
-            }
-          />
-          <strong>Tercer</strong>
-        </label>
-        <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <TimeInput value={t3.in} onChange={(v) => setT3({ ...t3, in: v })} />
-          <TimeInput value={t3.out} onChange={(v) => setT3({ ...t3, out: v })} />
-          <div style={{ marginLeft: 8 }}>
-            <div>Auxiliares</div>
-            <NumberSelect
-              value={aux.t3}
-              onChange={(v) => setAux((s) => ({ ...s, t3: v }))}
-            />
-          </div>
-          <div>
-            <div>Supervisores</div>
-            <NumberSelect
-              value={sup.t3}
-              onChange={(v) => setSup((s) => ({ ...s, t3: v }))}
-            />
-          </div>
+        {/* Turnos */}
+        <h2 className="mt-6 mb-2 text-lg font-semibold">Turnos y dotación</h2>
+        <div className="grid grid-cols-1 gap-4">
+          <ShiftCard s={primer} set={setPrimer} />
+          <ShiftCard s={segundo} set={setSegundo} />
+          <ShiftCard s={tercer} set={setTercer} />
+          <ShiftCard s={custom} set={setCustom} />
         </div>
-      </div>
 
-      {/* Personalizado */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 10,
-        }}
-      >
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={turnosActivos.custom}
-            onChange={(e) =>
-              setTurnosActivos((s) => ({ ...s, custom: e.target.checked }))
-            }
-          />
-          <strong>Personalizado</strong>
-        </label>
-        <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <TimeInput value={tc.in} onChange={(v) => setTc({ ...tc, in: v })} />
-          <TimeInput value={tc.out} onChange={(v) => setTc({ ...tc, out: v })} />
-          <div style={{ marginLeft: 8 }}>
-            <div>Auxiliares</div>
-            <NumberSelect
-              value={aux.tc}
-              onChange={(v) => setAux((s) => ({ ...s, tc: v }))}
-            />
-          </div>
-          <div>
-            <div>Supervisores</div>
-            <NumberSelect
-              value={sup.tc}
-              onChange={(v) => setSup((s) => ({ ...s, tc: v }))}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Desglose */}
-      <h3>Desglose por línea</h3>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f3f4f6" }}>
-              <th style={th}>Qty</th>
-              <th style={th}>Rol</th>
-              <th style={th}>Turno</th>
-              <th style={th}>Hrs/persona</th>
-              <th style={th}>U. Price</th>
-              <th style={{ ...th, textAlign: "right" }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lineas.map((l, i) => (
-              <tr key={i}>
-                <td style={td}>{l.qty}</td>
-                <td style={td}>{l.rol}</td>
-                <td style={td}>{l.turno}</td>
-                <td style={td}>{l.horasPorPersona.toFixed(1)}</td>
-                <td style={td}>{fmtMoney(l.precioUnitarioHora)}</td>
-                <td style={{ ...td, textAlign: "right" }}>{fmtMoney(l.total)}</td>
+        {/* Desglose */}
+        <h2 className="mt-8 mb-3 text-lg font-semibold">Desglose por línea</h2>
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr className="text-left">
+                <th className="px-4 py-2 w-16">Qty</th>
+                <th className="px-4 py-2">Rol</th>
+                <th className="px-4 py-2">Turno</th>
+                <th className="px-4 py-2 text-right">Hrs/persona</th>
+                <th className="px-4 py-2 text-right">U. Price</th>
+                <th className="px-4 py-2 text-right">Total</th>
               </tr>
-            ))}
-            {lineas.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ ...td, textAlign: "center" }}>
-                  Sin líneas aún.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {lineas.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                    Sin dotación seleccionada.
+                  </td>
+                </tr>
+              ) : (
+                lineas.map((l, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-4 py-2">{l.qty}</td>
+                    <td className="px-4 py-2">{l.rol}</td>
+                    <td className="px-4 py-2">{l.turno}</td>
+                    <td className="px-4 py-2 text-right">
+                      {l.horasPersona.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {fmtMoney(l.unitPrice)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {fmtMoney(l.total)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {/* Totales */}
-      <div
-        style={{
-          marginTop: 12,
-          display: "flex",
-          gap: 16,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <strong>Total por día:</strong>
-        <span>{fmtMoney(totalDia)}</span>
-        <span style={{ opacity: 0.4 }}>|</span>
-        <strong>Total semanal:</strong>
-        <span>{fmtMoney(totalConInsumos)}</span>
-      </div>
-
-      {/* Acciones */}
-      <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
-        <button
-          onClick={generarPDFServidor}
-          disabled={generating || lineas.length === 0}
-          style={{
-            padding: "10px 16px",
-            fontSize: 16,
-            borderRadius: 8,
-            border: "1px solid #ccc",
-            background: generating ? "#ddd" : "#fff",
-            cursor: generating ? "not-allowed" : "pointer",
-          }}
-        >
-          {generating ? "Generando..." : "Generar PDF"}
-        </button>
-
-        <label
-          style={{
-            padding: "10px 16px",
-            fontSize: 14,
-            borderRadius: 8,
-            border: "1px dashed #aaa",
-            cursor: "pointer",
-          }}
-        >
-          Cargar logo
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              const b64 = await fileToDataUrl(f);
-              setLogoDataUrl(b64);
-            }}
-          />
-        </label>
+        {/* Totales */}
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm">
+            <b>Total por día:</b> <span className="ml-2">{fmtMoney(totalDia)}</span>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm">
+            <b>Total semanal:</b>{" "}
+            <span className="ml-2">{fmtMoney(totalSemanal)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 8px",
-  borderBottom: "1px solid #e5e7eb",
-  fontWeight: 600,
-};
-
-const td: React.CSSProperties = {
-  padding: "10px 8px",
-  borderBottom: "1px solid #f1f5f9",
-};
-
-async function fileToDataUrl(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-  return `data:${file.type};base64,${b64}`;
 }
