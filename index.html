@@ -5,36 +5,162 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cotizador Clean Way</title>
     <style>
+      /* ======== Design System ======== */
       :root {
-        /* Gris más oscuro */
-        --bg-gray: #d1d5db;     /* antes #f3f4f6 */
-        --card-bg: #ffffff;
-        --line: #c5cbd3;        /* bordes un poco más marcados */
-        --text: #111827;
-        --muted: #4b5563;
-        --thead: #eef2f7;       /* encabezado tabla */
-        --zebra: #f3f4f6;       /* filas alternas */
-        --pill: #e5e7eb;        /* chips suaves */
+        --brand: #0ea5e9;           /* acento (azul cielo) */
+        --brand-600: #0284c7;
+        --bg: #eef2f7;              /* fondo app */
+        --panel: #ffffff;           /* cartas */
+        --line: #e5e7eb;            /* bordes */
+        --text: #0f172a;            /* texto principal */
+        --muted: #64748b;           /* texto secundario */
+        --thead: #f8fafc;           /* header tabla */
+        --zebra: #f2f6fb;           /* filas alternas */
+        --pill: #eef6ff;            /* chips */
+        --shadow: 0 10px 24px rgba(2, 8, 23, 0.08);
+        --radius: 14px;
+        --radius-sm: 10px;
+        --ring: 0 0 0 3px rgba(14, 165, 233, 0.25);
       }
-      html, body { background: var(--bg-gray); color: var(--text); }
-      .container { max-width: 1100px; margin: 0 auto; padding: 24px; font-family: Inter, system-ui, Arial; }
-      .card { background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px; padding:16px; }
-      .header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
-      .header img { height: 64px; width: auto; }   /* LOGO más grande en web */
-      .subtle { color: var(--muted); font-size: 12px; }
-      table.data { width:100%; border-collapse: separate; border-spacing:0; }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1220;
+          --panel: #0f172a;
+          --line: #1e293b;
+          --text: #e2e8f0;
+          --muted: #93a4b8;
+          --thead: #111a2b;
+          --zebra: #0c1527;
+          --pill: #0c1d2a;
+          --shadow: 0 8px 20px rgba(0,0,0,0.35);
+          --ring: 0 0 0 3px rgba(14, 165, 233, 0.35);
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      html, body { background: var(--bg); color: var(--text); }
+
+      /* ======== Layout ======== */
+      .container {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 24px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .header {
+        display:flex; align-items:center; gap:16px; margin-bottom:12px;
+      }
+      .header img { height: 60px; width: auto; }
+      h1 { margin:0; font-size: 22px; letter-spacing: 0.2px; }
+      .subtle { color: var(--muted); font-size: 13px; }
+
+      /* ======== Controls ======== */
+      label { display:block; font-size:13px; color: var(--muted); }
+      input, select {
+        width: 100%;
+        margin-top:6px;
+        padding:10px 12px;
+        border:1px solid var(--line);
+        border-radius: var(--radius-sm);
+        background: #fff;
+        color: var(--text);
+        transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+      }
+      input:focus, select:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: var(--ring);
+      }
+      select:hover, input:hover { transform: translateY(-1px); }
+
+      /* ======== Table ======== */
+      table.data {
+        width:100%;
+        border-collapse: separate;
+        border-spacing:0;
+        overflow: hidden;
+        border-radius: var(--radius-sm);
+        border:1px solid var(--line);
+      }
       table.data thead th {
-        text-align:left; padding:10px; background: var(--thead); border-bottom:1px solid var(--line);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        text-align:left;
+        padding:12px 12px;
+        background: linear-gradient(180deg, var(--thead), #eaf3fb 100%);
+        border-bottom:1px solid var(--line);
         font-weight:600;
+        font-size: 13px;
       }
-      table.data tbody td { padding:10px; border-bottom:1px solid var(--line); }
+      table.data tbody td {
+        padding:12px 12px;
+        border-bottom:1px solid var(--line);
+        font-size: 14px;
+      }
       table.data tbody tr:nth-child(even) td { background: var(--zebra); }
       .num { text-align:right; font-variant-numeric: tabular-nums; }
-      .chip { display:inline-block; padding:4px 8px; border-radius:999px; background:var(--pill); border:1px solid var(--line); }
-      .btn { padding:10px 14px; border-radius:8px; border:1px solid #111; background:#111; color:#fff; cursor:pointer; }
-      label { display:block; font-size:14px; color:#333; }
-      input, select { margin-top:4px; padding:8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
-      h1 { margin:0; font-size: 22px; }
+
+      /* ======== Chips / Badges ======== */
+      .chip {
+        display:inline-block;
+        padding:4px 10px;
+        border-radius: 999px;
+        background: var(--pill);
+        border:1px solid var(--line);
+        color: var(--brand-600);
+        font-weight: 600;
+        letter-spacing: .2px;
+      }
+
+      /* ======== Section titles ======== */
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        letter-spacing: .2px;
+      }
+
+      /* ======== Grid for top controls ======== */
+      .grid-ctrls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+      @media (max-width: 900px) {
+        .grid-ctrls { grid-template-columns: 1fr; }
+      }
+
+      /* ======== Totals row ======== */
+      .totals {
+        margin-top: 12px;
+        font-weight: 700;
+        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+        color: var(--text);
+      }
+      .totals span {
+        background: var(--pill);
+        border: 1px solid var(--line);
+        padding: 8px 12px;
+        border-radius: 10px;
+      }
+
+      /* ======== Microinteracciones ======== */
+      .card:hover { transform: translateY(-1px); transition: transform .12s ease; }
     </style>
   </head>
   <body>
