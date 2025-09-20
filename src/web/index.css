@@ -1,0 +1,37 @@
+/* === Fondo y capa de contenido === */
+:root {
+  --page-bg: #e9ecef;          /* gris suave del fondo general */
+  --card-bg: #ffffff;          /* fondo de cards */
+  --container-max: 1100px;     /* ancho máximo del contenido */
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.cw-page {
+  position: relative;          /* necesario para posicionar la franja */
+  min-height: 100%;
+}
+
+.cw-container {
+  position: relative;          /* asegura que está encima de la franja */
+  z-index: 1;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 24px 20px 48px;     /* ajusta si quieres más/menos espacio */
+}
+
+/* utilidades opcionales */
+.cw-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+}
