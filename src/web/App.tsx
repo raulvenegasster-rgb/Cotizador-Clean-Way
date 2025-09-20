@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import catalogsRaw from "../../data/catalogs.cleanway.json";
-import { cotizarCleanWay } from "../engine_cleanway";
-import type { CleanWayInput, Catalogs, ShiftInput } from "../types";
+import { cotizarCleanWay } from "./engine_cleanway";
+import type { CleanWayInput, Catalogs, ShiftInput } from "./types";
 
 const catalogs = catalogsRaw as unknown as Catalogs;
 
 // formateador MXN
-const fmtMXN = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 });
+const fmtMXN = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2
+});
 
 const defaultShifts: ShiftInput[] = [
   { enabled: true,  label: "Primer",        horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 },
@@ -29,7 +33,7 @@ function range(n: number) {
 
 export default function App() {
   const [dias, setDias] = useState<string>("L-S");
-  const [diasPers, setDiasPers] = useState<string[]>(["L","M","X","J","V"]);
+  const [diasPers, setDiasPers] = useState<string[]>(["L", "M", "X", "J", "V"]);
   const [insumosQuokka, setInsumosQuokka] = useState(true);
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
 
@@ -51,27 +55,42 @@ export default function App() {
         if (!cancel) setLogoDataUrl(dataUrl);
       } catch {}
     })();
-    return () => { cancel = true; };
+    return () => {
+      cancel = true;
+    };
   }, []);
 
-  useEffect(() => { if (dias === "L-V") setDiasPers(["L","M","X","J","V"]); }, [dias]);
+  useEffect(() => {
+    if (dias === "L-V") setDiasPers(["L", "M", "X", "J", "V"]);
+  }, [dias]);
 
-  const input: CleanWayInput = useMemo(() => ({
-    dias,
-    diasPersonalizados: dias === "custom" ? diasPers : (dias === "L,M,X,J,V" ? ["L","M","X","J","V"] : undefined),
-    insumosProveeQuokka: insumosQuokka,
-    shifts,
-    m2: undefined
-  }), [dias, diasPers, insumosQuokka, shifts]);
+  const input: CleanWayInput = useMemo(
+    () => ({
+      dias,
+      diasPersonalizados:
+        dias === "custom"
+          ? diasPers
+          : dias === "L,M,X,J,V"
+          ? ["L", "M", "X", "J", "V"]
+          : undefined,
+      insumosProveeQuokka: insumosQuokka,
+      shifts,
+      m2: undefined
+    }),
+    [dias, diasPers, insumosQuokka, shifts]
+  );
 
   const res = useMemo(() => cotizarCleanWay(catalogs as any, input), [input]);
 
   function updateShift(i: number, patch: Partial<ShiftInput>) {
-    setShifts(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
+    setShifts(prev => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
+
   function toggleDia(d: string) {
     setDias("custom");
-    setDiasPers(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+    setDiasPers(prev =>
+      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+    );
   }
 
   // PDF servidor
@@ -86,11 +105,11 @@ export default function App() {
           dias: res.diasEfectivosSemana
         },
         items: res.lineas.map(l => ({
-          Cantidad: l.qty,
+          Cantidad: l.Cantidad,
           rol: l.rol,
           turno: l.turno,
           horasPersona: l.horasPorPersona,
-          Precio/hora: l.precioUnitarioHora,
+          "Precio/hora": l.precioUnitarioHora,
           total: l.total,
           moneda: "MXN"
         })),
@@ -132,11 +151,21 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 16 }}>
-        <label>Días de semana
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 16,
+          marginTop: 16
+        }}
+      >
+        <label>
+          Días de semana
           <select
             value={diasToLabel(dias)}
-            onChange={e=> setDias(e.target.value === "Personalizado" ? "custom" : e.target.value)}
+            onChange={e =>
+              setDias(e.target.value === "Personalizado" ? "custom" : e.target.value)
+            }
             style={{ width: "100%" }}
           >
             <option value="L-V">L-V</option>
@@ -147,8 +176,13 @@ export default function App() {
           </select>
         </label>
 
-        <label>¿Quokka provee insumos?
-          <select value={insumosQuokka ? "si" : "no"} onChange={e=>setInsumosQuokka(e.target.value==="si")} style={{ width: "100%" }}>
+        <label>
+          ¿Quokka provee insumos?
+          <select
+            value={insumosQuokka ? "si" : "no"}
+            onChange={e => setInsumosQuokka(e.target.value === "si")}
+            style={{ width: "100%" }}
+          >
             <option value="si">Sí</option>
             <option value="no">No</option>
           </select>
@@ -156,9 +190,14 @@ export default function App() {
 
         <div style={{ display: dias === "custom" ? "block" : "none" }}>
           <div className="subtle">Selecciona días</div>
-          {["L","M","X","J","V","S","D"].map(d => (
+          {["L", "M", "X", "J", "V", "S", "D"].map(d => (
             <label key={d} style={{ marginRight: 8 }}>
-              <input type="checkbox" checked={diasPers.includes(d)} onChange={()=>toggleDia(d)} /> {d}
+              <input
+                type="checkbox"
+                checked={diasPers.includes(d)}
+                onChange={() => toggleDia(d)}
+              />{" "}
+              {d}
             </label>
           ))}
         </div>
@@ -168,24 +207,89 @@ export default function App() {
         <h3>Turnos y dotación por turno</h3>
         {shifts.map((s, i) => (
           <div key={i} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "80px 160px 160px 160px 160px 160px", gap: 12, alignItems: "center" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "80px 160px 160px 160px 160px 160px",
+                gap: 12,
+                alignItems: "end"
+              }}
+            >
               <label>
-                <input type="checkbox" checked={s.enabled} onChange={e=>updateShift(i,{enabled: e.target.checked})}/> {s.label}
-              </label>
-              <label>Entrada
-                <input type="time" value={s.horaEntrada} onChange={e=>updateShift(i,{horaEntrada: e.target.value})} style={{ width: "100%" }}/>
-              </label>
-              <label>Salida
-                <input type="time" value={s.horaSalida} onChange={e=>updateShift(i,{horaSalida: e.target.value})} style={{ width: "100%" }}/>
-              </label>
-              <label>Auxiliares
-                <select value={s.auxiliares} onChange={e=>updateShift(i,{auxiliares: Number(e.target.value)})} style={{ width: "100%" }}>
-                  {range(50).map(n => <option key={n} value={n}>{n}</option>)}
+                Activo
+                <select
+                  value={s.enabled ? "si" : "no"}
+                  onChange={e =>
+                    updateShift(i, { enabled: e.target.value === "si" })
+                  }
+                  style={{ width: "100%" }}
+                >
+                  <option value="si">Sí</option>
+                  <option value="no">No</option>
                 </select>
               </label>
-              <label>Supervisores
-                <select value={s.supervisores} onChange={e=>updateShift(i,{supervisores: Number(e.target.value)})} style={{ width: "100%" }}>
-                  {range(50).map(n => <option key={n} value={n}>{n}</option>)}
+              <label>
+                Turno
+                <select
+                  value={s.label}
+                  onChange={e => updateShift(i, { label: e.target.value })}
+                  style={{ width: "100%" }}
+                >
+                  <option value="Primer">Primer</option>
+                  <option value="Segundo">Segundo</option>
+                  <option value="Tercer">Tercer</option>
+                  <option value="Personalizado">Personalizado</option>
+                </select>
+              </label>
+              <label>
+                Entrada
+                <input
+                  type="time"
+                  value={s.horaEntrada}
+                  onChange={e => updateShift(i, { horaEntrada: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </label>
+              <label>
+                Salida
+                <input
+                  type="time"
+                  value={s.horaSalida}
+                  onChange={e => updateShift(i, { horaSalida: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </label>
+              <label>
+                Auxiliares
+                <select
+                  value={s.auxiliares}
+                  onChange={e =>
+                    updateShift(i, { auxiliares: Number(e.target.value) })
+                  }
+                  style={{ width: "100%" }}
+                >
+                  {range(50).map(n => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Supervisores
+                <select
+                  value={s.supervisores}
+                  onChange={e =>
+                    updateShift(i, { supervisores: Number(e.target.value) })
+                  }
+                  style={{ width: "100%" }}
+                >
+                  {range(50).map(n => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -211,7 +315,9 @@ export default function App() {
               <tr key={idx}>
                 <td>{l.Cantidad}</td>
                 <td>{l.rol}</td>
-                <td><span className="chip">{l.turno}</span></td>
+                <td>
+                  <span className="chip">{l.turno}</span>
+                </td>
                 <td className="num">{l.horasPorPersona.toFixed(1)}</td>
                 <td className="num">{fmtMXN.format(l.precioUnitarioHora)}</td>
                 <td className="num">{fmtMXN.format(l.total)}</td>
@@ -221,8 +327,8 @@ export default function App() {
         </table>
 
         <div style={{ marginTop: 12, fontWeight: 600, textAlign: "right" }}>
-          Total por día: {fmtMXN.format(res.totalDia)} MXN &nbsp; | &nbsp;
-          Total semanal: {fmtMXN.format(res.totalSemana)} MXN
+          Total por día: {fmtMXN.format(res.totalDia)} MXN &nbsp; | &nbsp; Total
+          semanal: {fmtMXN.format(res.totalSemana)} MXN
         </div>
       </div>
 
