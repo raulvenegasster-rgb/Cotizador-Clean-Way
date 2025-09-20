@@ -51,4 +51,3 @@ export type CleanWayBreakdown = {
   precioHoraPromedio: number;
   alertas: string[];
 };
-
