@@ -36,7 +36,7 @@ export type CleanWayInput = {
 export type LineaRol = {
   turno: string;
   rol: "Auxiliar" | "Supervisor";
-  qty: number;
+  Cantidad: number;
   horasPorPersona: number;
   precioUnitarioHora: number;
   total: number;

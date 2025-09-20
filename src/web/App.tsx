@@ -86,11 +86,11 @@ export default function App() {
           dias: res.diasEfectivosSemana
         },
         items: res.lineas.map(l => ({
-          qty: l.qty,
+          Cantidad: l.qty,
           rol: l.rol,
           turno: l.turno,
           horasPersona: l.horasPorPersona,
-          unitPrice: l.precioUnitarioHora,
+          Precio/hora: l.precioUnitarioHora,
           total: l.total,
           moneda: "MXN"
         })),
@@ -209,7 +209,7 @@ export default function App() {
           <tbody>
             {res.lineas.map((l, idx) => (
               <tr key={idx}>
-                <td>{l.qty}</td>
+                <td>{l.Cantidad}</td>
                 <td>{l.rol}</td>
                 <td><span className="chip">{l.turno}</span></td>
                 <td className="num">{l.horasPorPersona.toFixed(1)}</td>
