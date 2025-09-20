@@ -198,11 +198,11 @@ export default function App() {
         <table className="data">
           <thead>
             <tr>
-              <th>Qty</th>
+              <th>Cantidad</th>
               <th>Rol</th>
               <th>Turno</th>
               <th className="num">Hrs/persona</th>
-              <th className="num">U. Price</th>
+              <th className="num">Precio/hora</th>
               <th className="num">Total</th>
             </tr>
           </thead>
