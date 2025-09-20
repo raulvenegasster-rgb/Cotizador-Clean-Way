@@ -1,14 +1,13 @@
 // src/engine_cleanway.ts
 import type { CleanWayInput, Resultado, LineaRol, Rol } from "./types";
 
-// Ejemplo de costos unitarios por rol; ajusta a tus catálogos reales
+// Precios dummy para que compile; reemplaza por los de tus catálogos si procede.
 const PRECIO_HORA: Record<Rol, number> = {
   Auxiliar: 85,
   Supervisor: 120
 };
 
 function horas(hIn: string, hOut: string): number {
-  // calcula horas; si salida < entrada, es al día siguiente
   const [hi, mi] = hIn.split(":").map(Number);
   const [ho, mo] = hOut.split(":").map(Number);
   const ini = hi + mi / 60;
@@ -17,7 +16,7 @@ function horas(hIn: string, hOut: string): number {
   return +(fin - ini).toFixed(2);
 }
 
-export function cotizarCleanWay(_: any, input: CleanWayInput): Resultado {
+export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
   const diasEfectivosSemana =
     input.dias === "custom"
       ? (input.diasPersonalizados?.length ?? 0)
@@ -42,7 +41,7 @@ export function cotizarCleanWay(_: any, input: CleanWayInput): Resultado {
       lineas.push({
         turno: s.label,
         rol,
-        Cantidad: cantidad,            // ← aquí el cambio
+        Cantidad: cantidad,            // ← aquí mapeamos a "Cantidad"
         horasPorPersona: h,
         precioUnitarioHora: precio,
         total
@@ -56,10 +55,5 @@ export function cotizarCleanWay(_: any, input: CleanWayInput): Resultado {
   const totalDia = lineas.reduce((acc, l) => acc + l.total, 0);
   const totalSemana = totalDia * diasEfectivosSemana;
 
-  return {
-    lineas,
-    diasEfectivosSemana,
-    totalDia,
-    totalSemana
-  };
+  return { lineas, diasEfectivosSemana, totalDia, totalSemana };
 }

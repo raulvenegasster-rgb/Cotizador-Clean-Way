@@ -1,6 +1,15 @@
 // src/types.ts
 export type Rol = "Auxiliar" | "Supervisor";
 
+/** Catálogos mínimos para que compile.
+ *  Ajusta campos si luego usas más propiedades reales.
+ */
+export interface Catalogs {
+  // pon aquí lo que realmente tengas en data/catalogs.cleanway.json
+  // lo dejamos laxo para no bloquear el build
+  [k: string]: unknown;
+}
+
 export interface ShiftInput {
   enabled: boolean;
   label: "Primer" | "Segundo" | "Tercer" | "Personalizado";
@@ -21,7 +30,7 @@ export interface CleanWayInput {
 export interface LineaRol {
   turno: string;
   rol: Rol;
-  Cantidad: number;              // ← clave oficial
+  Cantidad: number;              // ← clave oficial que tú pediste
   horasPorPersona: number;
   precioUnitarioHora: number;
   total: number;
