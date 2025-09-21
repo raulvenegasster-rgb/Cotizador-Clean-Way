@@ -42,7 +42,6 @@ export default function App() {
 
   const catalogs = catalogsRaw as unknown as Record<string, unknown>;
 
-  // si algún día quieres reusar el logo, ya queda precargado
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancel = false;
@@ -94,30 +93,6 @@ export default function App() {
     setDiasPers(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
   }
 
-  // estilo inline para el “radio” único circular
-  const radioCircleStyle: React.CSSProperties = {
-    width: 20,
-    height: 20,
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-    borderRadius: "50%",
-    border: "2px solid var(--line)",
-    background: "transparent",
-    display: "inline-block",
-    verticalAlign: "middle",
-    cursor: "pointer",
-    outline: "none",
-    transition: "box-shadow .15s ease, border-color .15s ease, background .15s ease"
-  };
-
-  const radioCircleCheckedStyle: React.CSSProperties = {
-    ...radioCircleStyle,
-    borderColor: "var(--brand)",
-    background: "var(--brand)",
-    boxShadow: "inset 0 0 0 5px var(--panel)"
-  };
-
   return (
     <div className="container">
       <div className="header">
@@ -128,7 +103,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Controles superiores con el grid estilizado (definido en index.html) */}
+      {/* Controles superiores */}
       <div className="grid-ctrls">
         <label>
           Días de semana
@@ -165,7 +140,11 @@ export default function App() {
       <div style={{ marginTop: 24 }}>
         <h3>Turnos y dotación por turno</h3>
         {shifts.map((s, i) => (
-          <div key={i} className="card" style={{ marginBottom: 10 }}>
+          <div
+            key={i}
+            className={`card ${s.enabled ? "shift-card--active" : ""}`}
+            style={{ marginBottom: 10 }}
+          >
             <div
               style={{
                 display: "grid",
@@ -174,25 +153,15 @@ export default function App() {
                 alignItems: "end"
               }}
             >
-              {/* Activo: único “radio” circular seleccionable */}
+              {/* Activo: único “radio” circular (checkbox estilizado) */}
               <div>
                 <label style={{ marginBottom: 6, display: "block" }}>Activo</label>
                 <input
                   type="checkbox"
+                  className="radio-circle"
                   aria-label={`Activar turno ${i + 1}`}
                   checked={s.enabled}
                   onChange={() => updateShift(i, { enabled: !s.enabled })}
-                  style={s.enabled ? radioCircleCheckedStyle : radioCircleStyle}
-                  onFocus={e => {
-                    e.currentTarget.style.boxShadow = s.enabled
-                      ? "inset 0 0 0 5px var(--panel), 0 0 0 3px rgba(14,165,233,.35)"
-                      : "0 0 0 3px rgba(14,165,233,.35)";
-                  }}
-                  onBlur={e => {
-                    e.currentTarget.style.boxShadow = s.enabled
-                      ? "inset 0 0 0 5px var(--panel)"
-                      : "none";
-                  }}
                 />
               </div>
 
@@ -279,9 +248,7 @@ export default function App() {
               <tr key={idx}>
                 <td>{l.Cantidad}</td>
                 <td>{l.rol}</td>
-                <td>
-                  <span className="chip">{l.turno}</span>
-                </td>
+                <td><span className="chip">{l.turno}</span></td>
                 <td className="num">{l.horasPorPersona.toFixed(1)}</td>
                 <td className="num">{fmtMXN.format(l.precioUnitarioHora)}</td>
                 <td className="num">{fmtMXN.format(l.total)}</td>
