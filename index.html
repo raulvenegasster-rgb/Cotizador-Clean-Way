@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cotizador Clean Way</title>
 
-    <!-- TIPOGRAFÍA LIMPIA -->
+    <!-- Tipografía -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,6 @@
     <style>
       /* =========================================================
          Tema Clean Way (claro, elegante y corporativo)
-         Colores según brochure
          ========================================================= */
       :root {
         /* Brand */
@@ -22,29 +21,26 @@
         --accent:  #8cc63f;   /* Verde acento */
 
         /* Superficies */
-        --bg:      #ffffff;   /* Fondo principal claro */
-        --card:    #f7f7f9;   /* Tarjetas */
-        --line:    #e6e6ef;   /* Bordes sutiles */
-        --thead:   #f0f2f7;   /* Encabezado tabla */
-        --zebra:   #fafbfe;   /* Zebra rows */
+        --bg:      #ffffff;
+        --card:    #f7f7f9;
+        --line:    #e6e6ef;
+        --thead:   #f0f2f7;
+        --zebra:   #fafbfe;
 
         /* Texto */
-        --text:    #333333;   /* Principal */
-        --muted:   #6b7280;   /* Secundario */
+        --text:    #333333;
+        --muted:   #6b7280;
 
         /* Componentes */
-        --pill:    #eff4ff;   /* Chip fondo */
-        --chip-bd: #d0d7ff;   /* Chip borde */
-
         --radius:  14px;
         --radius-sm: 10px;
 
-        /* Sombras elegantes */
-        --shadow-sm: 0 6px 14px rgba(17, 24, 39, 0.08);
-        --shadow-md: 0 10px 24px rgba(17, 24, 39, 0.10);
+        /* Sombras */
+        --shadow-sm: 0 6px 14px rgba(17,24,39,.08);
+        --shadow-md: 0 10px 24px rgba(17,24,39,.10);
 
-        /* Accesibilidad focus */
-        --ring: 0 0 0 3px rgba(140, 198, 63, 0.45);
+        /* Focus ring accesible */
+        --ring: 0 0 0 3px rgba(140,198,63,.45);
       }
 
       * { box-sizing: border-box; }
@@ -55,7 +51,7 @@
         color: var(--text);
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
       }
-      ::selection { background: rgba(140, 198, 63, 0.20); }
+      ::selection { background: rgba(140,198,63,.20); }
 
       .container {
         max-width: 1120px;
@@ -63,7 +59,7 @@
         padding: 24px;
       }
 
-      /* ===== Header corporativo ===== */
+      /* ===== Header ===== */
       .header {
         display: flex;
         align-items: center;
@@ -75,11 +71,16 @@
         box-shadow: var(--shadow-md);
         margin-bottom: 18px;
       }
-      .header img { height: 54px; width: auto; }
-      h1 { margin: 0; font-size: 28px; letter-spacing: .2px; }
+      /* Logo forzado a blanco */
+      .header img.logo-white {
+        height: 54px;
+        width: auto;
+        filter: brightness(0) invert(1) drop-shadow(0 1px 0 rgba(0,0,0,.2));
+      }
+      h1 { margin: 0; font-size: 28px; letter-spacing: .2px; color: #fff; }
       .subtle { color: #e9e9f6; opacity: .9; font-size: 13px; }
 
-      /* ===== Tarjetas y layout ===== */
+      /* ===== Tarjetas / layout ===== */
       .card {
         background: var(--card);
         border: 1px solid var(--line);
@@ -88,7 +89,6 @@
         box-shadow: var(--shadow-sm);
       }
       .card:hover { transform: translateY(-1px); transition: transform .12s ease; }
-
       .shift-card--active { border: 2px solid var(--accent); }
 
       .grid-ctrls {
@@ -97,9 +97,7 @@
         gap: 16px;
         margin-top: 12px;
       }
-      @media (max-width: 900px) {
-        .grid-ctrls { grid-template-columns: 1fr; }
-      }
+      @media (max-width: 900px) { .grid-ctrls { grid-template-columns: 1fr; } }
 
       /* ===== Inputs ===== */
       label { display:block; font-size:13px; color: var(--muted); }
@@ -119,7 +117,7 @@
         box-shadow: var(--ring);
       }
 
-      /* Radio circular (checkbox estilizado) */
+      /* Checkbox estilo “radio” para Activo */
       input[type="checkbox"].radio-circle {
         width: 20px; height: 20px;
         appearance: none; -webkit-appearance: none; -moz-appearance: none;
@@ -167,7 +165,7 @@
       table.data tbody tr:nth-child(even) td { background: var(--zebra); }
       .num { text-align:right; font-variant-numeric: tabular-nums; }
 
-      /* Chips de turno: morado con borde fino y texto blanco */
+      /* Chips de turno */
       .chip {
         display:inline-block;
         padding:4px 10px;
@@ -202,7 +200,6 @@
         border-radius: 10px;
       }
 
-      /* Botón genérico por si lo usas */
       .btn {
         background: var(--primary);
         color: #fff;
@@ -216,6 +213,14 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Tu app -->
     <script type="module" src="/src/web/main.tsx"></script>
+
+    <!-- Header renderizado por React, pero el estilo del logo ya está aquí:
+         Asegúrate de que el <img> dentro de tu App use class="logo-white".
+         Si lo tienes como <img src="/logo-cleanway.png" ...>, cámbialo a: 
+         <img class="logo-white" src="/logo-cleanway.png" alt="Clean Way" />
+    -->
   </body>
 </html>
