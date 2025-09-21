@@ -25,7 +25,7 @@ function horas(hIn: string, hOut: string): number {
 }
 
 function diasActivos(input: CleanWayInput): Day[] {
-  if (input.dias === "custom") return input.diasPersonalizados ?? [];
+  if (input.dias === "custom") return (input.diasPersonalizados ?? []) as Day[];
   if (input.dias === "L-V") return ["L", "M", "X", "J", "V"];
   if (input.dias === "L-S") return ["L", "M", "X", "J", "V", "S"];
   if (input.dias === "L-D") return ["L", "M", "X", "J", "V", "S", "D"];
@@ -34,7 +34,7 @@ function diasActivos(input: CleanWayInput): Day[] {
 }
 
 export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
-  const dias = diasActivos(input);
+  const dias: Day[] = diasActivos(input);
   const lineas: LineaRol[] = [];
 
   input.shifts.forEach((s: ShiftInput) => {
@@ -42,7 +42,7 @@ export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
 
     dias.forEach((d: Day) => {
       // Entre semana: usa base del turno si está enabled
-      if (["L", "M", "X", "J", "V"].includes(d)) {
+      if (d === "L" || d === "M" || d === "X" || d === "J" || d === "V") {
         if (!s.enabled) return;
         const push = (rol: Rol, cantidad: number) => {
           if (cantidad <= 0) return;
@@ -79,7 +79,7 @@ export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
           horasPorPersona: h,
           precioUnitarioHora: precio,
           total,
-          dia: d
+          dia: d // aquí sí es Day
         });
       };
       push("Auxiliar", wk.auxiliares);
@@ -87,11 +87,12 @@ export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
     });
   });
 
-  // Totales semana: 5 días de L-V si están en 'dias', más S/D si fueron incluidos
-  const incluyeLV = ["L", "M", "X", "J", "V"].every(d => dias.includes(d));
-  // Total diario para L-V (sumando todas las líneas L-V del mismo día)
+  // Totales
+  const incluyeLV = (["L", "M", "X", "J", "V"] as Day[]).every(d => dias.includes(d));
+
+  // Total diario para L-V (suma de líneas sin 'dia')
   const totalLVporDia = lineas
-    .filter(l => !l.dia)
+    .filter(l => l.dia === undefined)
     .reduce((acc, l) => acc + l.total, 0);
 
   const totalSab = lineas
