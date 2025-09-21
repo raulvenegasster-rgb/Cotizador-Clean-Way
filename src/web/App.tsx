@@ -46,7 +46,7 @@ export default function App() {
   const [insumosQuokka, setInsumosQuokka] = useState(true);
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
 
-  // FIX: tipado correcto del catálogo
+  // Catálogo tipado correctamente
   const catalogs = catalogsRaw as Catalogs;
 
   // sincroniza selector global con toggles S/D
@@ -92,8 +92,9 @@ export default function App() {
 
   return (
     <div className="container">
+      {/* ===== Header con logo en blanco ===== */}
       <div className="header">
-        <img src="/logo-cleanway.png" alt="Clean Way" />
+        <img className="logo-white" src="/logo-cleanway.png" alt="Clean Way" />
         <div>
           <h1>Cotizador Clean Way</h1>
           <div className="subtle">Parámetros de cotización</div>
