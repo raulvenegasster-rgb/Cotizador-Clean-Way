@@ -7,7 +7,8 @@ import type {
   ShiftInput,
   Resultado,
   LineaRol,
-  WeekendCounts
+  WeekendCounts,
+  Catalogs
 } from "../types";
 
 const fmtMXN = new Intl.NumberFormat("es-MX", {
@@ -45,7 +46,8 @@ export default function App() {
   const [insumosQuokka, setInsumosQuokka] = useState(true);
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
 
-  const catalogs = catalogsRaw as unknown as Record<string, unknown>;
+  // FIX: tipado correcto del catálogo
+  const catalogs = catalogsRaw as Catalogs;
 
   // sincroniza selector global con toggles S/D
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function App() {
     [dias, insumosQuokka, shifts]
   );
 
-  const res: Resultado = useMemo(() => cotizarCleanWay(catalogs, input), [input]);
+  const res: Resultado = useMemo(() => cotizarCleanWay(catalogs, input), [catalogs, input]);
 
   function updateShift(i: number, patch: Partial<ShiftInput>) {
     setShifts(prev => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
