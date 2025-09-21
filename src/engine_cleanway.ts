@@ -1,7 +1,15 @@
 // src/engine_cleanway.ts
-import type { CleanWayInput, Resultado, LineaRol, Rol } from "./types";
+import type {
+  CleanWayInput,
+  Resultado,
+  LineaRol,
+  Rol,
+  Day,
+  ShiftInput,
+  WeekendCounts
+} from "./types";
 
-// Precios dummy para que compile; reemplaza por los de tus catálogos si procede.
+// Sustituye por tus catálogos reales cuando toque
 const PRECIO_HORA: Record<Rol, number> = {
   Auxiliar: 85,
   Supervisor: 120
@@ -16,44 +24,95 @@ function horas(hIn: string, hOut: string): number {
   return +(fin - ini).toFixed(2);
 }
 
-export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
-  const diasEfectivosSemana =
-    input.dias === "custom"
-      ? (input.diasPersonalizados?.length ?? 0)
-      : input.dias === "L-V"
-      ? 5
-      : input.dias === "L-S"
-      ? 6
-      : input.dias === "L-D"
-      ? 7
-      : 5;
+function diasActivos(input: CleanWayInput): Day[] {
+  if (input.dias === "custom") return input.diasPersonalizados ?? [];
+  if (input.dias === "L-V") return ["L", "M", "X", "J", "V"];
+  if (input.dias === "L-S") return ["L", "M", "X", "J", "V", "S"];
+  if (input.dias === "L-D") return ["L", "M", "X", "J", "V", "S", "D"];
+  if (input.dias === "L,M,X,J,V") return ["L", "M", "X", "J", "V"];
+  return ["L", "M", "X", "J", "V"];
+}
 
+export function cotizarCleanWay(_: unknown, input: CleanWayInput): Resultado {
+  const dias = diasActivos(input);
   const lineas: LineaRol[] = [];
 
-  input.shifts.forEach(s => {
-    if (!s.enabled) return;
+  input.shifts.forEach((s: ShiftInput) => {
     const h = horas(s.horaEntrada, s.horaSalida);
 
-    const push = (rol: Rol, cantidad: number) => {
-      if (cantidad <= 0) return;
-      const precio = PRECIO_HORA[rol];
-      const total = cantidad * h * precio;
-      lineas.push({
-        turno: s.label,
-        rol,
-        Cantidad: cantidad,            // ← aquí mapeamos a "Cantidad"
-        horasPorPersona: h,
-        precioUnitarioHora: precio,
-        total
-      });
-    };
+    dias.forEach((d: Day) => {
+      // Entre semana: usa base del turno si está enabled
+      if (["L", "M", "X", "J", "V"].includes(d)) {
+        if (!s.enabled) return;
+        const push = (rol: Rol, cantidad: number) => {
+          if (cantidad <= 0) return;
+          const precio = PRECIO_HORA[rol];
+          const total = cantidad * h * precio;
+          lineas.push({
+            turno: s.label,
+            rol,
+            Cantidad: cantidad,
+            horasPorPersona: h,
+            precioUnitarioHora: precio,
+            total
+            // sin 'dia' para L-V
+          });
+        };
+        push("Auxiliar", s.auxiliares);
+        push("Supervisor", s.supervisores);
+        return;
+      }
 
-    push("Auxiliar", s.auxiliares);
-    push("Supervisor", s.supervisores);
+      // Fin de semana: solo si hay override y está enabled
+      const wk: WeekendCounts | undefined =
+        d === "S" ? s.weekend?.sabado : s.weekend?.domingo;
+      if (!wk || !wk.enabled) return;
+
+      const push = (rol: Rol, cantidad: number) => {
+        if (cantidad <= 0) return;
+        const precio = PRECIO_HORA[rol];
+        const total = cantidad * h * precio;
+        lineas.push({
+          turno: s.label,
+          rol,
+          Cantidad: cantidad,
+          horasPorPersona: h,
+          precioUnitarioHora: precio,
+          total,
+          dia: d
+        });
+      };
+      push("Auxiliar", wk.auxiliares);
+      push("Supervisor", wk.supervisores);
+    });
   });
 
-  const totalDia = lineas.reduce((acc, l) => acc + l.total, 0);
-  const totalSemana = totalDia * diasEfectivosSemana;
+  // Totales semana: 5 días de L-V si están en 'dias', más S/D si fueron incluidos
+  const incluyeLV = ["L", "M", "X", "J", "V"].every(d => dias.includes(d));
+  // Total diario para L-V (sumando todas las líneas L-V del mismo día)
+  const totalLVporDia = lineas
+    .filter(l => !l.dia)
+    .reduce((acc, l) => acc + l.total, 0);
 
-  return { lineas, diasEfectivosSemana, totalDia, totalSemana };
+  const totalSab = lineas
+    .filter(l => l.dia === "S")
+    .reduce((acc, l) => acc + l.total, 0);
+
+  const totalDom = lineas
+    .filter(l => l.dia === "D")
+    .reduce((acc, l) => acc + l.total, 0);
+
+  const totalSemana =
+    (incluyeLV ? totalLVporDia * 5 : 0) +
+    (dias.includes("S") ? totalSab : 0) +
+    (dias.includes("D") ? totalDom : 0);
+
+  const totalDia = totalSemana / (dias.length || 1);
+
+  return {
+    lineas,
+    diasEfectivosSemana: dias.length || 0,
+    totalDia,
+    totalSemana
+  };
 }

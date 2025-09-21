@@ -7,7 +7,6 @@ import type {
   ShiftInput,
   Resultado,
   LineaRol,
-  Day,
   WeekendCounts
 } from "../types";
 
@@ -39,15 +38,16 @@ function range(n: number) {
 export default function App() {
   // Base: L-V
   const [dias, setDias] = useState<CleanWayInput["dias"]>("L-V");
-  // flags para añadir S/D de forma explícita
+  // Toggles globales para habilitar S/D
   const [incluirSabado, setIncluirSabado] = useState(false);
   const [incluirDomingo, setIncluirDomingo] = useState(false);
 
   const [insumosQuokka, setInsumosQuokka] = useState(true);
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
+
   const catalogs = catalogsRaw as unknown as Record<string, unknown>;
 
-  // Ajusta select "dias" según toggles S/D
+  // sincroniza selector global con toggles S/D
   useEffect(() => {
     if (incluirSabado && incluirDomingo) setDias("L-D");
     else if (incluirSabado && !incluirDomingo) setDias("L-S");
@@ -76,7 +76,10 @@ export default function App() {
       prev.map((s, idx) => {
         if (idx !== i) return s;
         const weekend = { ...(s.weekend ?? {}) };
-        const current = { enabled: false, auxiliares: 0, supervisores: 0, ...(day === "S" ? weekend.sabado : weekend.domingo) };
+        const current =
+          day === "S"
+            ? { enabled: false, auxiliares: 0, supervisores: 0, ...(weekend.sabado ?? {}) }
+            : { enabled: false, auxiliares: 0, supervisores: 0, ...(weekend.domingo ?? {}) };
         const next = { ...current, ...patch };
         if (day === "S") weekend.sabado = next;
         else weekend.domingo = next;
@@ -104,7 +107,7 @@ export default function App() {
             <option value="L-S">L-S</option>
             <option value="L-D">L-D</option>
             <option value="L,M,X,J,V">L,M,X,J,V</option>
-            <option value="Personalizado" disabled>Personalizado (no aplica)</option>
+            <option value="Personalizado" disabled>Personalizado</option>
           </select>
         </label>
 
@@ -116,25 +119,17 @@ export default function App() {
           </select>
         </label>
 
-        {/* Acción global: activar configuración de fin de semana */}
+        {/* Activadores de fin de semana */}
         <div className="card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 14 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={incluirSabado}
-              onChange={e => setIncluirSabado(e.target.checked)}
-            />
+            <input type="checkbox" checked={incluirSabado} onChange={e => setIncluirSabado(e.target.checked)} />
             <span>Incluir sábado</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={incluirDomingo}
-              onChange={e => setIncluirDomingo(e.target.checked)}
-            />
+            <input type="checkbox" checked={incluirDomingo} onChange={e => setIncluirDomingo(e.target.checked)} />
             <span>Incluir domingo</span>
           </label>
-          <div className="subtle">Activa y luego define cantidades por turno abajo.</div>
+          <div className="subtle">Activa y define cantidades por turno abajo.</div>
         </div>
       </div>
 
@@ -218,7 +213,7 @@ export default function App() {
               </label>
             </div>
 
-            {/* Configuración fin de semana por turno (solo si S/D activos globalmente) */}
+            {/* Fin de semana por turno (solo si S/D activados) */}
             {(incluirSabado || incluirDomingo) && (
               <div style={{ marginTop: 12 }}>
                 <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -264,9 +259,7 @@ export default function App() {
                                 type="number"
                                 min={0}
                                 value={s.weekend?.sabado?.auxiliares ?? 0}
-                                onChange={e =>
-                                  updateWeekend(i, "S", { auxiliares: Number(e.target.value) })
-                                }
+                                onChange={e => updateWeekend(i, "S", { auxiliares: Number(e.target.value) })}
                                 style={{ width: 90 }}
                               />
                             </td>
@@ -275,9 +268,7 @@ export default function App() {
                                 type="number"
                                 min={0}
                                 value={s.weekend?.sabado?.supervisores ?? 0}
-                                onChange={e =>
-                                  updateWeekend(i, "S", { supervisores: Number(e.target.value) })
-                                }
+                                onChange={e => updateWeekend(i, "S", { supervisores: Number(e.target.value) })}
                                 style={{ width: 90 }}
                               />
                             </td>
@@ -305,9 +296,7 @@ export default function App() {
                                 type="number"
                                 min={0}
                                 value={s.weekend?.domingo?.auxiliares ?? 0}
-                                onChange={e =>
-                                  updateWeekend(i, "D", { auxiliares: Number(e.target.value) })
-                                }
+                                onChange={e => updateWeekend(i, "D", { auxiliares: Number(e.target.value) })}
                                 style={{ width: 90 }}
                               />
                             </td>
@@ -316,9 +305,7 @@ export default function App() {
                                 type="number"
                                 min={0}
                                 value={s.weekend?.domingo?.supervisores ?? 0}
-                                onChange={e =>
-                                  updateWeekend(i, "D", { supervisores: Number(e.target.value) })
-                                }
+                                onChange={e => updateWeekend(i, "D", { supervisores: Number(e.target.value) })}
                                 style={{ width: 90 }}
                               />
                             </td>
@@ -327,7 +314,7 @@ export default function App() {
                       </tbody>
                     </table>
                     <div className="subtle" style={{ marginTop: 6 }}>
-                      Nota: si el día no está “Activo”, no se contabiliza aunque haya cantidades.
+                      Si el día no está “Activo”, no se contabiliza aunque pongas cantidades.
                     </div>
                   </div>
                 )}
