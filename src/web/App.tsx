@@ -6,7 +6,9 @@ import type {
   CleanWayInput,
   ShiftInput,
   Resultado,
-  LineaRol
+  LineaRol,
+  Day,
+  WeekendCounts
 } from "../types";
 
 const fmtMXN = new Intl.NumberFormat("es-MX", {
@@ -16,10 +18,10 @@ const fmtMXN = new Intl.NumberFormat("es-MX", {
 });
 
 const defaultShifts: ShiftInput[] = [
-  { enabled: true,  label: "Primer",        horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Segundo",       horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Tercer",        horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 0, supervisores: 0 },
-  { enabled: false, label: "Personalizado", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 }
+  { enabled: true,  label: "Primer",        horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0, weekend: {}, useWeekend: false },
+  { enabled: false, label: "Segundo",       horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 0, supervisores: 0, weekend: {}, useWeekend: false },
+  { enabled: false, label: "Tercer",        horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 0, supervisores: 0, weekend: {}, useWeekend: false },
+  { enabled: false, label: "Personalizado", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0, weekend: {}, useWeekend: false }
 ];
 
 function diasToLabel(d: CleanWayInput["dias"]) {
@@ -35,51 +37,32 @@ function range(n: number) {
 }
 
 export default function App() {
-  const [dias, setDias] = useState<CleanWayInput["dias"]>("L-S");
-  const [diasPers, setDiasPers] = useState<string[]>(["L", "M", "X", "J", "V"]);
+  // Base: L-V
+  const [dias, setDias] = useState<CleanWayInput["dias"]>("L-V");
+  // flags para añadir S/D de forma explícita
+  const [incluirSabado, setIncluirSabado] = useState(false);
+  const [incluirDomingo, setIncluirDomingo] = useState(false);
+
   const [insumosQuokka, setInsumosQuokka] = useState(true);
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts);
-
   const catalogs = catalogsRaw as unknown as Record<string, unknown>;
 
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  // Ajusta select "dias" según toggles S/D
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        const r = await fetch("/logo-cleanway.png");
-        if (!r.ok) return;
-        const b = await r.blob();
-        const dataUrl = await new Promise<string>((res, rej) => {
-          const fr = new FileReader();
-          fr.onload = () => res(fr.result as string);
-          fr.onerror = () => rej(new Error("reader"));
-          fr.readAsDataURL(b);
-        });
-        if (!cancel) setLogoDataUrl(dataUrl);
-      } catch {}
-    })();
-    return () => { cancel = true; };
-  }, []);
-
-  useEffect(() => {
-    if (dias === "L-V") setDiasPers(["L", "M", "X", "J", "V"]);
-  }, [dias]);
+    if (incluirSabado && incluirDomingo) setDias("L-D");
+    else if (incluirSabado && !incluirDomingo) setDias("L-S");
+    else if (!incluirSabado && !incluirDomingo) setDias("L-V");
+  }, [incluirSabado, incluirDomingo]);
 
   const input: CleanWayInput = useMemo(
     () => ({
       dias,
-      diasPersonalizados:
-        dias === "custom"
-          ? diasPers
-          : dias === "L,M,X,J,V"
-          ? ["L", "M", "X", "J", "V"]
-          : undefined,
+      diasPersonalizados: undefined,
       insumosProveeQuokka: insumosQuokka,
       shifts,
       m2: undefined
     }),
-    [dias, diasPers, insumosQuokka, shifts]
+    [dias, insumosQuokka, shifts]
   );
 
   const res: Resultado = useMemo(() => cotizarCleanWay(catalogs, input), [input]);
@@ -88,9 +71,18 @@ export default function App() {
     setShifts(prev => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
 
-  function toggleDia(d: string) {
-    setDias("custom");
-    setDiasPers(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
+  function updateWeekend(i: number, day: "S" | "D", patch: Partial<WeekendCounts>) {
+    setShifts(prev =>
+      prev.map((s, idx) => {
+        if (idx !== i) return s;
+        const weekend = { ...(s.weekend ?? {}) };
+        const current = { enabled: false, auxiliares: 0, supervisores: 0, ...(day === "S" ? weekend.sabado : weekend.domingo) };
+        const next = { ...current, ...patch };
+        if (day === "S") weekend.sabado = next;
+        else weekend.domingo = next;
+        return { ...s, weekend };
+      })
+    );
   }
 
   return (
@@ -107,44 +99,49 @@ export default function App() {
       <div className="grid-ctrls">
         <label>
           Días de semana
-          <select
-            value={diasToLabel(dias)}
-            onChange={e =>
-              setDias(
-                e.target.value === "Personalizado"
-                  ? "custom"
-                  : (e.target.value as CleanWayInput["dias"])
-              )
-            }
-          >
+          <select value={diasToLabel(dias)} onChange={e => setDias(e.target.value as CleanWayInput["dias"])}>
             <option value="L-V">L-V</option>
             <option value="L-S">L-S</option>
             <option value="L-D">L-D</option>
             <option value="L,M,X,J,V">L,M,X,J,V</option>
-            <option value="Personalizado">Personalizado</option>
+            <option value="Personalizado" disabled>Personalizado (no aplica)</option>
           </select>
         </label>
 
         <label>
           ¿Quokka provee insumos?
-          <select
-            value={insumosQuokka ? "si" : "no"}
-            onChange={e => setInsumosQuokka(e.target.value === "si")}
-          >
+          <select value={insumosQuokka ? "si" : "no"} onChange={e => setInsumosQuokka(e.target.value === "si")}>
             <option value="si">Sí</option>
             <option value="no">No</option>
           </select>
         </label>
+
+        {/* Acción global: activar configuración de fin de semana */}
+        <div className="card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={incluirSabado}
+              onChange={e => setIncluirSabado(e.target.checked)}
+            />
+            <span>Incluir sábado</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={incluirDomingo}
+              onChange={e => setIncluirDomingo(e.target.checked)}
+            />
+            <span>Incluir domingo</span>
+          </label>
+          <div className="subtle">Activa y luego define cantidades por turno abajo.</div>
+        </div>
       </div>
 
       <div style={{ marginTop: 24 }}>
         <h3>Turnos y dotación por turno</h3>
         {shifts.map((s, i) => (
-          <div
-            key={i}
-            className={`card ${s.enabled ? "shift-card--active" : ""}`}
-            style={{ marginBottom: 10 }}
-          >
+          <div key={i} className={`card ${s.enabled ? "shift-card--active" : ""}`} style={{ marginBottom: 12 }}>
             <div
               style={{
                 display: "grid",
@@ -153,13 +150,13 @@ export default function App() {
                 alignItems: "end"
               }}
             >
-              {/* Activo: único “radio” circular (checkbox estilizado) */}
+              {/* Activo L-V */}
               <div>
-                <label style={{ marginBottom: 6, display: "block" }}>Activo</label>
+                <label style={{ marginBottom: 6, display: "block" }}>Activo (L-V)</label>
                 <input
                   type="checkbox"
                   className="radio-circle"
-                  aria-label={`Activar turno ${i + 1}`}
+                  aria-label={`Activar turno ${i + 1} L-V`}
                   checked={s.enabled}
                   onChange={() => updateShift(i, { enabled: !s.enabled })}
                 />
@@ -169,9 +166,7 @@ export default function App() {
                 Turno
                 <select
                   value={s.label}
-                  onChange={e =>
-                    updateShift(i, { label: e.target.value as ShiftInput["label"] })
-                  }
+                  onChange={e => updateShift(i, { label: e.target.value as ShiftInput["label"] })}
                 >
                   <option value="Primer">Primer</option>
                   <option value="Segundo">Segundo</option>
@@ -199,33 +194,145 @@ export default function App() {
               </label>
 
               <label>
-                Auxiliares
+                Auxiliares L-V
                 <select
                   value={s.auxiliares}
                   onChange={e => updateShift(i, { auxiliares: Number(e.target.value) })}
                 >
                   {range(50).map(n => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
+                    <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
               </label>
 
               <label>
-                Supervisores
+                Supervisores L-V
                 <select
                   value={s.supervisores}
                   onChange={e => updateShift(i, { supervisores: Number(e.target.value) })}
                 >
                   {range(50).map(n => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
+                    <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
               </label>
             </div>
+
+            {/* Configuración fin de semana por turno (solo si S/D activos globalmente) */}
+            {(incluirSabado || incluirDomingo) && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={!!s.useWeekend}
+                    onChange={e => updateShift(i, { useWeekend: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <span>Configurar fin de semana para este turno</span>
+                </label>
+
+                {s.useWeekend && (
+                  <div className="card" style={{ marginTop: 10 }}>
+                    <table className="data">
+                      <thead>
+                        <tr>
+                          <th>Día</th>
+                          <th>Activo</th>
+                          <th className="num">Auxiliares</th>
+                          <th className="num">Supervisores</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {incluirSabado && (
+                          <tr>
+                            <td>Sábado</td>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={!!s.weekend?.sabado?.enabled}
+                                onChange={e =>
+                                  updateWeekend(i, "S", {
+                                    enabled: e.target.checked,
+                                    auxiliares: s.weekend?.sabado?.auxiliares ?? 0,
+                                    supervisores: s.weekend?.sabado?.supervisores ?? 0
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="num">
+                              <input
+                                type="number"
+                                min={0}
+                                value={s.weekend?.sabado?.auxiliares ?? 0}
+                                onChange={e =>
+                                  updateWeekend(i, "S", { auxiliares: Number(e.target.value) })
+                                }
+                                style={{ width: 90 }}
+                              />
+                            </td>
+                            <td className="num">
+                              <input
+                                type="number"
+                                min={0}
+                                value={s.weekend?.sabado?.supervisores ?? 0}
+                                onChange={e =>
+                                  updateWeekend(i, "S", { supervisores: Number(e.target.value) })
+                                }
+                                style={{ width: 90 }}
+                              />
+                            </td>
+                          </tr>
+                        )}
+
+                        {incluirDomingo && (
+                          <tr>
+                            <td>Domingo</td>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={!!s.weekend?.domingo?.enabled}
+                                onChange={e =>
+                                  updateWeekend(i, "D", {
+                                    enabled: e.target.checked,
+                                    auxiliares: s.weekend?.domingo?.auxiliares ?? 0,
+                                    supervisores: s.weekend?.domingo?.supervisores ?? 0
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="num">
+                              <input
+                                type="number"
+                                min={0}
+                                value={s.weekend?.domingo?.auxiliares ?? 0}
+                                onChange={e =>
+                                  updateWeekend(i, "D", { auxiliares: Number(e.target.value) })
+                                }
+                                style={{ width: 90 }}
+                              />
+                            </td>
+                            <td className="num">
+                              <input
+                                type="number"
+                                min={0}
+                                value={s.weekend?.domingo?.supervisores ?? 0}
+                                onChange={e =>
+                                  updateWeekend(i, "D", { supervisores: Number(e.target.value) })
+                                }
+                                style={{ width: 90 }}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                    <div className="subtle" style={{ marginTop: 6 }}>
+                      Nota: si el día no está “Activo”, no se contabiliza aunque haya cantidades.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -235,6 +342,7 @@ export default function App() {
         <table className="data">
           <thead>
             <tr>
+              <th>Día</th>
               <th>Cantidad</th>
               <th>Rol</th>
               <th>Turno</th>
@@ -246,6 +354,7 @@ export default function App() {
           <tbody>
             {res.lineas.map((l: LineaRol, idx: number) => (
               <tr key={idx}>
+                <td>{l.dia ?? "L-V"}</td>
                 <td>{l.Cantidad}</td>
                 <td>{l.rol}</td>
                 <td><span className="chip">{l.turno}</span></td>
@@ -258,7 +367,7 @@ export default function App() {
         </table>
 
         <div className="totals">
-          <span>Total por día: {fmtMXN.format(res.totalDia)} MXN</span>
+          <span>Promedio por día: {fmtMXN.format(res.totalDia)} MXN</span>
           <span>Total semanal: {fmtMXN.format(res.totalSemana)} MXN</span>
         </div>
       </div>
