@@ -4,85 +4,142 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cotizador Clean Way</title>
+
+    <!-- TIPOGRAFÍA LIMPIA -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-      /* ======== Clean Way Theme (del brochure) ======== */
+      /* =========================================================
+         Tema Clean Way (claro, elegante y corporativo)
+         Colores según brochure
+         ========================================================= */
       :root {
-        /* Brand purples */
-        --brand: #542790;        /* principal */
-        --brand-600: #45068c;    /* hover/foco */
-        --brand-700: #39077e;    /* más profundo */
+        /* Brand */
+        --primary: #3f0071;   /* Morado corporativo */
+        --primary-700: #2c0050;
+        --accent:  #8cc63f;   /* Verde acento */
 
-        /* Lime accent */
-        --accent: #a6ce39;
+        /* Superficies */
+        --bg:      #ffffff;   /* Fondo principal claro */
+        --card:    #f7f7f9;   /* Tarjetas */
+        --line:    #e6e6ef;   /* Bordes sutiles */
+        --thead:   #f0f2f7;   /* Encabezado tabla */
+        --zebra:   #fafbfe;   /* Zebra rows */
 
-        /* Surfaces y texto (dark-friendly) */
-        --bg: #0b1220;           /* fondo app */
-        --panel: #0f172a;        /* tarjetas */
-        --line: #1e293b;         /* bordes */
-        --text: #e2e8f0;         /* texto principal */
-        --muted: #93a4b8;        /* texto secundario */
+        /* Texto */
+        --text:    #333333;   /* Principal */
+        --muted:   #6b7280;   /* Secundario */
 
-        /* Tabla y chips */
-        --thead: #111a2b;
-        --zebra: #0c1527;
-        --pill: #0c1d2a;
+        /* Componentes */
+        --pill:    #eff4ff;   /* Chip fondo */
+        --chip-bd: #d0d7ff;   /* Chip borde */
 
-        --shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-        --radius: 14px;
+        --radius:  14px;
         --radius-sm: 10px;
 
-        /* Focus ring con acento lima para accesibilidad */
-        --ring: 0 0 0 3px rgba(166, 206, 57, 0.45);
+        /* Sombras elegantes */
+        --shadow-sm: 0 6px 14px rgba(17, 24, 39, 0.08);
+        --shadow-md: 0 10px 24px rgba(17, 24, 39, 0.10);
+
+        /* Accesibilidad focus */
+        --ring: 0 0 0 3px rgba(140, 198, 63, 0.45);
       }
 
       * { box-sizing: border-box; }
-      html, body { height: 100%; color-scheme: dark; }
-      body { margin: 0; background: var(--bg); color: var(--text); }
-      ::selection { background: rgba(166,206,57,.25); }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+      }
+      ::selection { background: rgba(140, 198, 63, 0.20); }
 
       .container {
         max-width: 1120px;
         margin: 0 auto;
         padding: 24px;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
       }
 
+      /* ===== Header corporativo ===== */
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 20px;
+        border-radius: var(--radius);
+        background: linear-gradient(90deg, var(--primary), var(--primary-700));
+        color: #fff;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 18px;
+      }
+      .header img { height: 54px; width: auto; }
+      h1 { margin: 0; font-size: 28px; letter-spacing: .2px; }
+      .subtle { color: #e9e9f6; opacity: .9; font-size: 13px; }
+
+      /* ===== Tarjetas y layout ===== */
       .card {
-        background: var(--panel);
+        background: var(--card);
         border: 1px solid var(--line);
         border-radius: var(--radius);
         padding: 18px;
-        box-shadow: var(--shadow);
+        box-shadow: var(--shadow-sm);
+      }
+      .card:hover { transform: translateY(-1px); transition: transform .12s ease; }
+
+      .shift-card--active { border: 2px solid var(--accent); }
+
+      .grid-ctrls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 12px;
+      }
+      @media (max-width: 900px) {
+        .grid-ctrls { grid-template-columns: 1fr; }
       }
 
-      .header { display:flex; align-items:center; gap:16px; margin-bottom:12px; }
-      .header img { height: 60px; width: auto; }
-      h1 { margin:0; font-size: 26px; letter-spacing: 0.2px; }
-      .subtle { color: var(--muted); font-size: 13px; }
-
-      /* Controles */
+      /* ===== Inputs ===== */
       label { display:block; font-size:13px; color: var(--muted); }
       input, select {
         width: 100%;
         margin-top:6px;
         padding:10px 12px;
-        border:1px solid var(--line);
+        border:1px solid #dcddea;
         border-radius: var(--radius-sm);
-        background: #0c1322;
+        background: #fff;
         color: var(--text);
-        transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+        transition: border-color .15s ease, box-shadow .15s ease;
       }
-      input::placeholder { color: var(--muted); opacity: .95; }
-      input[type="time"]::-webkit-datetime-edit,
-      input[type="date"]::-webkit-datetime-edit { color: var(--text); }
       input:focus, select:focus {
         outline: none;
-        border-color: var(--brand-600);
+        border-color: var(--primary);
         box-shadow: var(--ring);
       }
-      select:hover, input:hover { transform: translateY(-1px); }
 
-      /* Tabla */
+      /* Radio circular (checkbox estilizado) */
+      input[type="checkbox"].radio-circle {
+        width: 20px; height: 20px;
+        appearance: none; -webkit-appearance: none; -moz-appearance: none;
+        border-radius: 50%;
+        border: 2px solid #cdd3e0;
+        background: #fff;
+        display: inline-block;
+        vertical-align: middle;
+        cursor: pointer;
+        outline: none;
+        transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+      }
+      input[type="checkbox"].radio-circle:focus { box-shadow: var(--ring); }
+      input[type="checkbox"].radio-circle:checked {
+        border-color: var(--primary);
+        background: var(--primary);
+        box-shadow: inset 0 0 0 5px #fff;
+      }
+
+      /* ===== Tabla ===== */
       table.data {
         width:100%;
         border-collapse: separate;
@@ -90,32 +147,34 @@
         overflow: hidden;
         border-radius: var(--radius-sm);
         border:1px solid var(--line);
+        background: #fff;
       }
       table.data thead th {
-        position: sticky; top: 0; z-index: 2;
+        position: sticky; top: 0; z-index: 1;
         text-align:left; padding:12px 12px;
-        background: linear-gradient(180deg, var(--thead), #0e1a2d 100%);
+        background: var(--thead);
         border-bottom:1px solid var(--line);
         font-weight:700; font-size: 13px; letter-spacing:.2px;
-        color: #d9e2f2;
+        color: #273244;
       }
       table.data tbody td {
         padding:12px 12px;
         border-bottom:1px solid var(--line);
         font-size: 14px;
         color: var(--text);
+        background: #fff;
       }
       table.data tbody tr:nth-child(even) td { background: var(--zebra); }
       .num { text-align:right; font-variant-numeric: tabular-nums; }
 
-      /* Chips: borde púrpura, texto lima */
+      /* Chips de turno: morado con borde fino y texto blanco */
       .chip {
         display:inline-block;
         padding:4px 10px;
         border-radius: 999px;
-        background: var(--pill);
-        border:1px solid var(--brand-700);
-        color: var(--accent);
+        background: var(--primary);
+        border:1px solid #2b0a56;
+        color: #ffffff;
         font-weight: 700;
         letter-spacing: .2px;
       }
@@ -124,17 +183,7 @@
         margin: 0 0 10px 0;
         font-size: 18px;
         letter-spacing: .2px;
-        color: #f1f5ff;
-      }
-
-      .grid-ctrls {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        margin-top: 16px;
-      }
-      @media (max-width: 900px) {
-        .grid-ctrls { grid-template-columns: 1fr; }
+        color: #1f2937;
       }
 
       .totals {
@@ -147,35 +196,22 @@
         color: var(--text);
       }
       .totals span {
-        background: linear-gradient(180deg, rgba(166,206,57,.12), rgba(166,206,57,.06));
-        border: 1px solid rgba(166,206,57,.35);
+        background: linear-gradient(180deg, rgba(140,198,63,.12), rgba(140,198,63,.06));
+        border: 1px solid rgba(140,198,63,.35);
         padding: 8px 12px;
         border-radius: 10px;
       }
 
-      /* Toggle circular de “Activo” (checkbox con look de radio) */
-      input[type="checkbox"].radio-circle {
-        width: 20px; height: 20px;
-        appearance: none; -webkit-appearance: none; -moz-appearance: none;
-        border-radius: 50%;
-        border: 2px solid var(--line);
-        background: transparent;
-        display: inline-block;
-        vertical-align: middle;
+      /* Botón genérico por si lo usas */
+      .btn {
+        background: var(--primary);
+        color: #fff;
+        border: 1px solid var(--primary-700);
+        padding: 10px 14px;
+        border-radius: 10px;
         cursor: pointer;
-        outline: none;
-        transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
       }
-      input[type="checkbox"].radio-circle:focus { box-shadow: var(--ring); }
-      input[type="checkbox"].radio-circle:checked {
-        border-color: var(--brand-600);
-        background: var(--brand);
-        box-shadow: inset 0 0 0 5px var(--panel);
-      }
-
-      /* Tarjetas con borde acentuado sutil cuando están activas */
-      .shift-card--active { border-color: rgba(166,206,57,.45); }
-      .card:hover { transform: translateY(-1px); transition: transform .12s ease; }
+      .btn:hover { background: var(--primary-700); }
     </style>
   </head>
   <body>
