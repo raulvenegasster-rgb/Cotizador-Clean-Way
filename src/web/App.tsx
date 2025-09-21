@@ -16,41 +16,12 @@ const fmtMXN = new Intl.NumberFormat("es-MX", {
 });
 
 const defaultShifts: ShiftInput[] = [
-  {
-    enabled: true,
-    label: "Primer",
-    horaEntrada: "06:00",
-    horaSalida: "14:00",
-    auxiliares: 0,
-    supervisores: 0
-  },
-  {
-    enabled: false,
-    label: "Segundo",
-    horaEntrada: "14:00",
-    horaSalida: "22:00",
-    auxiliares: 0,
-    supervisores: 0
-  },
-  {
-    enabled: false,
-    label: "Tercer",
-    horaEntrada: "22:00",
-    horaSalida: "06:00",
-    auxiliares: 0,
-    supervisores: 0
-  },
-  {
-    enabled: false,
-    label: "Personalizado",
-    horaEntrada: "06:00",
-    horaSalida: "14:00",
-    auxiliares: 0,
-    supervisores: 0
-  }
+  { enabled: true,  label: "Primer",        horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Segundo",       horaEntrada: "14:00", horaSalida: "22:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Tercer",        horaEntrada: "22:00", horaSalida: "06:00", auxiliares: 0, supervisores: 0 },
+  { enabled: false, label: "Personalizado", horaEntrada: "06:00", horaSalida: "14:00", auxiliares: 0, supervisores: 0 }
 ];
 
-// helper tipado con el union de CleanWayInput["dias"]
 function diasToLabel(d: CleanWayInput["dias"]) {
   if (d === "L-V") return "L-V";
   if (d === "L-S") return "L-S";
@@ -64,7 +35,6 @@ function range(n: number) {
 }
 
 export default function App() {
-  // usa el union, no string
   const [dias, setDias] = useState<CleanWayInput["dias"]>("L-S");
   const [diasPers, setDiasPers] = useState<string[]>(["L", "M", "X", "J", "V"]);
   const [insumosQuokka, setInsumosQuokka] = useState(true);
@@ -72,7 +42,7 @@ export default function App() {
 
   const catalogs = catalogsRaw as unknown as Record<string, unknown>;
 
-  // precargar logo (si luego lo quieres para otra cosa, aquí queda)
+  // si algún día quieres reusar el logo, ya queda precargado
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancel = false;
@@ -88,13 +58,9 @@ export default function App() {
           fr.readAsDataURL(b);
         });
         if (!cancel) setLogoDataUrl(dataUrl);
-      } catch {
-        // silencio elegante
-      }
+      } catch {}
     })();
-    return () => {
-      cancel = true;
-    };
+    return () => { cancel = true; };
   }, []);
 
   useEffect(() => {
@@ -125,10 +91,32 @@ export default function App() {
 
   function toggleDia(d: string) {
     setDias("custom");
-    setDiasPers(prev =>
-      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
-    );
+    setDiasPers(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
   }
+
+  // estilo inline para el “radio” único circular
+  const radioCircleStyle: React.CSSProperties = {
+    width: 20,
+    height: 20,
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    borderRadius: "50%",
+    border: "2px solid var(--line)",
+    background: "transparent",
+    display: "inline-block",
+    verticalAlign: "middle",
+    cursor: "pointer",
+    outline: "none",
+    transition: "box-shadow .15s ease, border-color .15s ease, background .15s ease"
+  };
+
+  const radioCircleCheckedStyle: React.CSSProperties = {
+    ...radioCircleStyle,
+    borderColor: "var(--brand)",
+    background: "var(--brand)",
+    boxShadow: "inset 0 0 0 5px var(--panel)"
+  };
 
   return (
     <div className="container">
@@ -140,14 +128,8 @@ export default function App() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
-          marginTop: 16
-        }}
-      >
+      {/* Controles superiores con el grid estilizado (definido en index.html) */}
+      <div className="grid-ctrls">
         <label>
           Días de semana
           <select
@@ -159,7 +141,6 @@ export default function App() {
                   : (e.target.value as CleanWayInput["dias"])
               )
             }
-            style={{ width: "100%" }}
           >
             <option value="L-V">L-V</option>
             <option value="L-S">L-S</option>
@@ -174,26 +155,11 @@ export default function App() {
           <select
             value={insumosQuokka ? "si" : "no"}
             onChange={e => setInsumosQuokka(e.target.value === "si")}
-            style={{ width: "100%" }}
           >
             <option value="si">Sí</option>
             <option value="no">No</option>
           </select>
         </label>
-
-        <div style={{ display: dias === "custom" ? "block" : "none" }}>
-          <div className="subtle">Selecciona días</div>
-          {["L", "M", "X", "J", "V", "S", "D"].map((d: string) => (
-            <label key={d} style={{ marginRight: 8 }}>
-              <input
-                type="checkbox"
-                checked={diasPers.includes(d)}
-                onChange={() => toggleDia(d)}
-              />{" "}
-              {d}
-            </label>
-          ))}
-        </div>
       </div>
 
       <div style={{ marginTop: 24 }}>
@@ -203,28 +169,40 @@ export default function App() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "80px 160px 160px 160px 160px 160px",
+                gridTemplateColumns: "120px 160px 160px 160px 160px 160px",
                 gap: 12,
                 alignItems: "end"
               }}
             >
-              <label>
-                Activo
-                <select
-                  value={s.enabled ? "si" : "no"}
-                  onChange={e => updateShift(i, { enabled: e.target.value === "si" })}
-                  style={{ width: "100%" }}
-                >
-                  <option value="si">Sí</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
+              {/* Activo: único “radio” circular seleccionable */}
+              <div>
+                <label style={{ marginBottom: 6, display: "block" }}>Activo</label>
+                <input
+                  type="checkbox"
+                  aria-label={`Activar turno ${i + 1}`}
+                  checked={s.enabled}
+                  onChange={() => updateShift(i, { enabled: !s.enabled })}
+                  style={s.enabled ? radioCircleCheckedStyle : radioCircleStyle}
+                  onFocus={e => {
+                    e.currentTarget.style.boxShadow = s.enabled
+                      ? "inset 0 0 0 5px var(--panel), 0 0 0 3px rgba(14,165,233,.35)"
+                      : "0 0 0 3px rgba(14,165,233,.35)";
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.boxShadow = s.enabled
+                      ? "inset 0 0 0 5px var(--panel)"
+                      : "none";
+                  }}
+                />
+              </div>
+
               <label>
                 Turno
                 <select
                   value={s.label}
-                  onChange={e => updateShift(i, { label: e.target.value as ShiftInput["label"] })}
-                  style={{ width: "100%" }}
+                  onChange={e =>
+                    updateShift(i, { label: e.target.value as ShiftInput["label"] })
+                  }
                 >
                   <option value="Primer">Primer</option>
                   <option value="Segundo">Segundo</option>
@@ -232,32 +210,30 @@ export default function App() {
                   <option value="Personalizado">Personalizado</option>
                 </select>
               </label>
+
               <label>
                 Entrada
                 <input
                   type="time"
                   value={s.horaEntrada}
                   onChange={e => updateShift(i, { horaEntrada: e.target.value })}
-                  style={{ width: "100%" }}
                 />
               </label>
+
               <label>
                 Salida
                 <input
                   type="time"
                   value={s.horaSalida}
                   onChange={e => updateShift(i, { horaSalida: e.target.value })}
-                  style={{ width: "100%" }}
                 />
               </label>
+
               <label>
                 Auxiliares
                 <select
                   value={s.auxiliares}
-                  onChange={e =>
-                    updateShift(i, { auxiliares: Number(e.target.value) })
-                  }
-                  style={{ width: "100%" }}
+                  onChange={e => updateShift(i, { auxiliares: Number(e.target.value) })}
                 >
                   {range(50).map(n => (
                     <option key={n} value={n}>
@@ -266,14 +242,12 @@ export default function App() {
                   ))}
                 </select>
               </label>
+
               <label>
                 Supervisores
                 <select
                   value={s.supervisores}
-                  onChange={e =>
-                    updateShift(i, { supervisores: Number(e.target.value) })
-                  }
-                  style={{ width: "100%" }}
+                  onChange={e => updateShift(i, { supervisores: Number(e.target.value) })}
                 >
                   {range(50).map(n => (
                     <option key={n} value={n}>
@@ -316,9 +290,9 @@ export default function App() {
           </tbody>
         </table>
 
-        <div style={{ marginTop: 12, fontWeight: 600, textAlign: "right" }}>
-          Total por día: {fmtMXN.format(res.totalDia)} MXN &nbsp; | &nbsp; Total semanal:{" "}
-          {fmtMXN.format(res.totalSemana)} MXN
+        <div className="totals">
+          <span>Total por día: {fmtMXN.format(res.totalDia)} MXN</span>
+          <span>Total semanal: {fmtMXN.format(res.totalSemana)} MXN</span>
         </div>
       </div>
     </div>
