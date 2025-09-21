@@ -19,15 +19,27 @@
   ],
   "epp": [
     {
-      "EPP": "Guantes",
-      "CostoUnitario": 20,
+      "EPP": "Lentes",
+      "CostoUnitario": 10.45,
       "VidaUtil_Dias": 120,
       "Uso_Diario_Unidades": 1
     },
     {
-      "EPP": "Botas",
-      "CostoUnitario": 650,
+      "EPP": "Guantes",
+      "CostoUnitario": 18.0,
+      "VidaUtil_Dias": 60,
+      "Uso_Diario_Unidades": 1
+    },
+    {
+      "EPP": "Chaleco",
+      "CostoUnitario": 280.0,
       "VidaUtil_Dias": 365,
+      "Uso_Diario_Unidades": 1
+    },
+    {
+      "EPP": "Tapones Auditivos",
+      "CostoUnitario": 4.24,
+      "VidaUtil_Dias": 120,
       "Uso_Diario_Unidades": 1
     }
   ],

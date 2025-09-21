@@ -7,5 +7,8 @@ export type {
   Resultado,
   Rol,
   Day,
-  WeekendCounts
+  WeekendCounts,
+  Catalogs,
+  CatalogRol,
+  CatalogEPP
 } from "./types";
