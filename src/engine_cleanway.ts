@@ -12,7 +12,7 @@ import type {
   CatalogEPP
 } from "./types";
 
-/** ================== Utilidades ================== */
+/* ================= Utilidades ================= */
 
 function horas(hIn: string, hOut: string): number {
   const [hi, mi] = hIn.split(":").map(Number);
@@ -32,30 +32,32 @@ function diasActivos(input: CleanWayInput): Day[] {
   return ["L", "M", "X", "J", "V"];
 }
 
+const WEEKDAYS: Day[] = ["L", "M", "X", "J", "V"];
+
+function countWeekdays(dias: Day[]): number {
+  return WEEKDAYS.filter(d => dias.includes(d)).length;
+}
+
 /** Precio hora por rol a partir del catálogo (CostoHora * (1 + Prestaciones%)) */
 function buildPrecioHoraPorRol(catalogs: Catalogs): Record<Rol, number> {
-  const map: Record<Rol, number> = {
-    Auxiliar: 0,
-    Supervisor: 0
-  };
   const roles = catalogs.roles ?? [];
   const byRol = new Map<Rol, CatalogRol>();
   roles.forEach(r => byRol.set(r.Rol, r));
 
-  const calc = (rol: Rol, fallback: number) => {
+  const calc = (rol: Rol, fallbackCostHora: number, fallbackPrest: number) => {
     const r = byRol.get(rol);
-    if (!r) return fallback;
-    const prestaciones = typeof r["Prestaciones%"] === "number" ? r["Prestaciones%"]! : 0;
-    return +(r.CostoHora * (1 + prestaciones)).toFixed(2);
+    const costHora = r ? r.CostoHora : fallbackCostHora;
+    const prest = r && typeof r["Prestaciones%"] === "number" ? r["Prestaciones%"]! : fallbackPrest;
+    return +(costHora * (1 + prest)).toFixed(2);
   };
 
-  // Fallback: 70 y 95 con 35% si no existieran en el catálogo
-  map.Auxiliar = calc("Auxiliar", +(70 * (1 + 0.35)).toFixed(2));
-  map.Supervisor = calc("Supervisor", +(95 * (1 + 0.35)).toFixed(2));
-  return map;
+  return {
+    Auxiliar: calc("Auxiliar", 70, 0.35),
+    Supervisor: calc("Supervisor", 95, 0.35)
+  };
 }
 
-/** Costo diario de EPP por persona */
+/** Costo diario de EPP por persona (solo si Quokka provee insumos) */
 function eppCostoDiarioPorPersona(catalogs: Catalogs): number {
   const epps: CatalogEPP[] = catalogs.epp ?? [];
   let total = 0;
@@ -67,10 +69,11 @@ function eppCostoDiarioPorPersona(catalogs: Catalogs): number {
   return +total.toFixed(4);
 }
 
-/** ================== Motor ================== */
+/* ================= Motor ================= */
 
 export function cotizarCleanWay(catalogs: Catalogs, input: CleanWayInput): Resultado {
   const dias: Day[] = diasActivos(input);
+  const nWeekdays = countWeekdays(dias); // puede ser 0..5 según selección
   const lineas: LineaRol[] = [];
 
   // Precios de mano de obra por hora
@@ -82,44 +85,38 @@ export function cotizarCleanWay(catalogs: Catalogs, input: CleanWayInput): Resul
   input.shifts.forEach((s: ShiftInput) => {
     const h = horas(s.horaEntrada, s.horaSalida);
 
-    dias.forEach((d: Day) => {
-      // Entre semana: usa base del turno si está enabled
-      if (d === "L" || d === "M" || d === "X" || d === "J" || d === "V") {
-        if (!s.enabled) return;
+    /* --------- 1) Consolidado L-V: UNA sola línea por rol --------- */
+    if (nWeekdays > 0 && s.enabled) {
+      const pushLV = (rol: Rol, cantidad: number) => {
+        if (cantidad <= 0) return;
+        const precioHora = PRECIO_HORA[rol];
+        const costoManoObra = cantidad * h * precioHora; // por DÍA
+        const costoEPP = cantidad * eppDiaPersona;        // por DÍA
+        const totalDiaLV = costoManoObra + costoEPP;
 
-        const push = (rol: Rol, cantidad: number) => {
-          if (cantidad <= 0) return;
-          const precioHora = PRECIO_HORA[rol];
-          const costoManoObra = cantidad * h * precioHora;
-          const costoEPP = cantidad * eppDiaPersona; // EPP por persona por día
-          const total = costoManoObra + costoEPP;
+        lineas.push({
+          turno: s.label,
+          rol,
+          Cantidad: cantidad,
+          horasPorPersona: h,
+          precioUnitarioHora: precioHora,
+          total: totalDiaLV
+          // sin 'dia' para L-V: es intencional, es línea diaria consolidada
+        });
+      };
 
-          lineas.push({
-            turno: s.label,
-            rol,
-            Cantidad: cantidad,
-            horasPorPersona: h,
-            precioUnitarioHora: precioHora, // mostramos solo mano de obra
-            total
-            // sin 'dia' para L-V
-          });
-        };
+      pushLV("Auxiliar", s.auxiliares);
+      pushLV("Supervisor", s.supervisores);
+    }
 
-        push("Auxiliar", s.auxiliares);
-        push("Supervisor", s.supervisores);
-        return;
-      }
-
-      // Fin de semana: usa override y enabled específico
-      const wk: WeekendCounts | undefined =
-        d === "S" ? s.weekend?.sabado : s.weekend?.domingo;
+    /* --------- 2) Sábado y Domingo: una línea por día si está activo --------- */
+    const weekendPush = (day: Day, wk?: WeekendCounts) => {
       if (!wk || !wk.enabled) return;
-
       const push = (rol: Rol, cantidad: number) => {
         if (cantidad <= 0) return;
         const precioHora = PRECIO_HORA[rol];
-        const costoManoObra = cantidad * h * precioHora;
-        const costoEPP = cantidad * eppDiaPersona;
+        const costoManoObra = cantidad * h * precioHora; // por DÍA
+        const costoEPP = cantidad * eppDiaPersona;        // por DÍA
         const total = costoManoObra + costoEPP;
 
         lineas.push({
@@ -129,22 +126,25 @@ export function cotizarCleanWay(catalogs: Catalogs, input: CleanWayInput): Resul
           horasPorPersona: h,
           precioUnitarioHora: precioHora,
           total,
-          dia: d
+          dia: day
         });
       };
-
       push("Auxiliar", wk.auxiliares);
       push("Supervisor", wk.supervisores);
-    });
+    };
+
+    if (dias.includes("S")) weekendPush("S", s.weekend?.sabado);
+    if (dias.includes("D")) weekendPush("D", s.weekend?.domingo);
   });
 
-  // Totales
-  const incluyeLV = (["L", "M", "X", "J", "V"] as Day[]).every(d => dias.includes(d));
+  /* --------- Totales --------- */
 
+  // Total diario (solo líneas L-V, que ya representan un DÍA típico entre semana)
   const totalLVporDia = lineas
     .filter(l => l.dia === undefined)
     .reduce((acc, l) => acc + l.total, 0);
 
+  // Totales de S y D (cada línea ya es por día)
   const totalSab = lineas
     .filter(l => l.dia === "S")
     .reduce((acc, l) => acc + l.total, 0);
@@ -153,17 +153,18 @@ export function cotizarCleanWay(catalogs: Catalogs, input: CleanWayInput): Resul
     .filter(l => l.dia === "D")
     .reduce((acc, l) => acc + l.total, 0);
 
+  // Suma semanal: nWeekdays puede ser 0..5 según selección
   const totalSemana =
-    (incluyeLV ? totalLVporDia * 5 : 0) +
+    totalLVporDia * nWeekdays +
     (dias.includes("S") ? totalSab : 0) +
     (dias.includes("D") ? totalDom : 0);
 
-  const totalDia = totalSemana / (dias.length || 1);
+  const totalDiaPromedio = totalSemana / (dias.length || 1);
 
   return {
     lineas,
     diasEfectivosSemana: dias.length || 0,
-    totalDia,
+    totalDia: totalDiaPromedio,
     totalSemana
   };
 }
